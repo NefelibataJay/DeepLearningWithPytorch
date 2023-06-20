@@ -1,0 +1,8 @@
+model_name: conformer_ctc
+loss: ctc
+optimizer: adam
+scheduler: warmup_lr
+metric: cer
+
+
+
