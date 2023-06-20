@@ -60,12 +60,13 @@ model:
     joint_ctc_attention: False
 
 optimizer:
-  lr: 0.001
+  lr: 0.0001
   betas: [ 0.9, 0.98 ]
   weight_decay: 1e-3
 
 lr_scheduler:
   last_epoch: ${train_conf.max_epoch}
+  warmup_steps: 25000
 
 loss:
   blank_id: ${tokenizer.blank_id}

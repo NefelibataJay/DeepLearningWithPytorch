@@ -4,7 +4,7 @@ import os
 import torch
 from omegaconf import OmegaConf
 
-from tool.trainer.conformerctctrainer import ConformerCTCTrainer
+from tool.trainer.conformer_ctc_trainer import ConformerCTCTrainer
 from util.initialize import init_config
 
 

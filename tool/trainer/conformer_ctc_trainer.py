@@ -3,7 +3,7 @@ import os
 import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
-
+from tensorboardX import SummaryWriter
 from util.tokenize.tokenizer import Tokenizer
 
 
@@ -18,6 +18,7 @@ class ConformerCTCTrainer:
         self.criterion = criterion
         self.metric = metric
         self.device = device
+        self.logger = SummaryWriter(os.path.join(self.config.save_path, "log"))
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
@@ -46,14 +47,16 @@ class ConformerCTCTrainer:
                 train_loss += loss.item()
 
             train_loss /= len(train_dataloader)
+            self.logger.add_scalar("train_loss", train_loss, epoch)
+            self.logger.add_scalar("train_lr", self.scheduler.get_lr(), epoch)
             print("train_loss:", train_loss, "train_lr", self.scheduler.get_lr())
             self.scheduler.step(train_loss)
             if epoch % self.config.train_conf.valid_interval == 0:
-                self.validate(valid_dataloader)
+                self.validate(valid_dataloader, epoch)
             if epoch % self.config.train_conf.save_interval == 0:
-                self.save_model()
+                self.save_model(epoch)
 
-    def validate(self, valid_dataloader):
+    def validate(self, valid_dataloader, epoch):
         self.model.eval()
         valid_loss = 0
         valid_acc = 0
@@ -61,8 +64,8 @@ class ConformerCTCTrainer:
             inputs, input_lengths, targets, target_lengths = batch
         valid_loss /= len(valid_dataloader)
         valid_acc /= len(valid_dataloader)
+        self.logger.add_scalar("valid_loss", self.scheduler.get_lr(), epoch)
         print("valid_loss:", valid_loss, "valid_acc:", valid_acc)
-        return valid_acc
 
     def save_model(self, epoch):
         if not os.path.exists(self.config.save_path):

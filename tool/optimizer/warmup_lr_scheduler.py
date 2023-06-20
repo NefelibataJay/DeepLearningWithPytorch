@@ -32,9 +32,6 @@ class WarmupLR(LRScheduler):
 
         super().__init__(optimizer, last_epoch)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}(warmup_steps={self.warmup_steps})"
-
     def get_lr(self):
         step_num = self.last_epoch + 1
         if self.warmup_steps == 0:
@@ -49,4 +46,3 @@ class WarmupLR(LRScheduler):
                 * min(step_num ** -0.5, step_num * self.warmup_steps ** -1.5)
                 for lr in self.base_lrs
             ]
-
