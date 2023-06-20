@@ -1,8 +1,70 @@
+seed: 42
+tokenizer_name: chinese_char
+dataset_name: aishell
 model_name: conformer_ctc
-loss: ctc
-optimizer: adam
-scheduler: warmup_lr
-metric: cer
+loss_name: ctc
+optimizer_name: adam
+scheduler_name: warmup_lr
+metric_name: cer
 
+train_conf:
+  do_train: True
+  checkpoint_path: # ../checkpoints/**.ckpt
+  batch_size: 32
+  max_epoch: 50
+  optimizer_name: adam
+  lr_scheduler_name: exponential_lr
+
+dataset:
+  dataset_path: /data/datasets/aishell/data_aishell
+  manifest_path: ../manifests/aishell_chars
+  feature_types: fbank
+  num_mel_bins: 80
+  sample_rate: 16000
+
+  spec_aug: True
+  spec_aug_conf:
+    max_t_mask: 20
+    max_f_mask: 10
+    num_t_mask: 2
+    num_f_mask: 2
+
+tokenizer:
+  lang: zh
+  word_dict_path: ../manifests/aishell_chars/vocab.txt
+  pad_id: 0
+  sos_id: 1
+  eos_id: 2
+  blank_id: 3
+  unk_id: 4
+
+model:
+  num_classes: ??
+  encoder:
+    input_dim: ${dataset.num_mel_bins}
+    encoder_dim: 512
+    num_encoder_layers: 12
+    num_attention_heads: 8
+    feed_forward_expansion_factor: 4
+    conv_expansion_factor: 2
+    input_dropout_p: 0.1
+    feed_forward_dropout_p: 0.1
+    attention_dropout_p: 0.1
+    conv_dropout_p: 0.1
+    conv_kernel_size: 31
+    half_step_residual: True
+    joint_ctc_attention: False
+
+optimizer:
+  lr: 0.001
+  betas: [ 0.9, 0.98 ]
+  weight_decay: 1e-3
+
+lr_scheduler:
+  warmup_steps: 25000
+  decay_steps: 25000
+  decay_rate: 0.5
+  min_lr: 1e-5
+  last_epoch: ${train_conf.max_epoch}
 
 

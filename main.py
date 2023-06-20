@@ -2,10 +2,14 @@ import argparse
 import os
 from omegaconf import OmegaConf
 
+from util.initialize import init_config
+
 
 def main():
     args = get_args()
     config = get_config(os.path.join(args.config_path, args.config_name + ".yaml"))
+
+    model, = init_config(config)
 
 
 def get_config(config_path):
