@@ -22,7 +22,7 @@ class ConformerCTCTrainer:
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
-        for epoch in range(self.config.train_conf.max_epoch):
+        for epoch in range(1, self.config.train_conf.max_epoch+1):
             print("Epoch:", epoch)
             self.model.train()
             train_loss = 0
@@ -56,6 +56,7 @@ class ConformerCTCTrainer:
             if epoch % self.config.train_conf.save_interval == 0:
                 self.save_model(epoch)
 
+    @torch.no_grad()
     def validate(self, valid_dataloader, epoch):
         self.model.eval()
         valid_loss = 0

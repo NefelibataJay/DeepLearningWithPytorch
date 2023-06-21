@@ -69,7 +69,14 @@ def init_optimizer(model, config):
 
 
 def init_scheduler(optimizer, config):
-    lr_scheduler = REGISTER_SCHEDULER[config.scheduler_name](optimizer, **config.lr_scheduler)
+    if config.scheduler_name == 'gradual_warmup_lr':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.lr_scheduler.T_max)
+        lr_scheduler = REGISTER_SCHEDULER[config.scheduler_name](optimizer,
+                                                                 multiplier=config.lr_scheduler.multiplier,
+                                                                 total_epoch=config.lr_scheduler.warmup_epochs,
+                                                                 after_scheduler=scheduler)
+    else:
+        lr_scheduler = REGISTER_SCHEDULER[config.scheduler_name](optimizer, **config.lr_scheduler)
     return lr_scheduler
 
 
