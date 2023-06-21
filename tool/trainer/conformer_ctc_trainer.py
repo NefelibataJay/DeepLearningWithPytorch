@@ -4,7 +4,7 @@ import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
-from tool.tokenize import Tokenizer
+from tool.tokenize.tokenizer import Tokenizer
 
 
 class ConformerCTCTrainer:
@@ -18,16 +18,20 @@ class ConformerCTCTrainer:
         self.criterion = criterion
         self.metric = metric
         self.device = device
-        self.logger = SummaryWriter(os.path.join(self.config.save_path, "log"))
+        self.accum_grad = self.config.train_conf.accum_grad
+        self.grad_clip = self.config.train_conf.grad_clip
+        self.logger = SummaryWriter(os.path.join(self.config.save_path, "log", self.config.model_name))
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
-        for epoch in range(1, self.config.train_conf.max_epoch+1):
-            print("Epoch:", epoch)
+        print("=========================Start Training=========================")
+        for epoch in range(self.config.train_conf.max_epoch + 1):
             self.model.train()
             train_loss = 0
-            for batch in tqdm(train_dataloader):
-                self.optimizer.zero_grad()
+            self.optimizer.zero_grad()
+
+            bar = tqdm(enumerate(train_dataloader), desc=f"Training Epoch:{epoch}")
+            for idx, batch in bar:
                 inputs, input_lengths, targets, target_lengths = batch
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
@@ -42,15 +46,26 @@ class ConformerCTCTrainer:
                     h_lens=output_lengths,
                     ys_lens=target_lengths,
                 )
+
+                loss /= self.accum_grad
                 loss.backward()
-                self.optimizer.step()
+
+                if (idx + 1) % self.accum_grad == 0 or (idx + 1) == len(train_dataloader):
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2)
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+
                 train_loss += loss.item()
 
             train_loss /= len(train_dataloader)
+
             self.logger.add_scalar("train_loss", train_loss, epoch)
-            self.logger.add_scalar("train_lr", self.scheduler.get_lr(), epoch)
-            print("train_loss:", train_loss, "train_lr", self.scheduler.get_lr())
-            self.scheduler.step(train_loss)
+            self.logger.add_scalar("train_lr", self.scheduler.get_last_lr(), epoch)
+
+            bar.set_postfix(info=f"train_loss:{train_loss}, train_lr:{self.scheduler.get_lr()}")
+
+            self.scheduler.step()
+
             if epoch % self.config.train_conf.valid_interval == 0:
                 self.validate(valid_dataloader, epoch)
             if epoch % self.config.train_conf.save_interval == 0:
@@ -59,6 +74,7 @@ class ConformerCTCTrainer:
     @torch.no_grad()
     def validate(self, valid_dataloader, epoch):
         self.model.eval()
+        print("=========================Eval=========================")
         valid_loss = 0
         valid_acc = 0
         for batch in tqdm(valid_dataloader):
@@ -71,4 +87,5 @@ class ConformerCTCTrainer:
     def save_model(self, epoch):
         if not os.path.exists(self.config.save_path):
             os.makedirs(self.config.save_path)
-        torch.save(self.model.state_dict(), os.path.join(self.config.save_path, f"{self.config.model_name}_{epoch}.pt"))
+        torch.save(self.model.state_dict(),
+                   os.path.join(self.config.save_path, "checkpoints", f"{self.config.model_name}_{epoch}.pt"))

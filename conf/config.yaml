@@ -6,7 +6,7 @@ loss_name: ctc
 optimizer_name: adam
 scheduler_name: gradual_warmup_lr
 metric_name: cer
-save_path: ./checkpoints/conformer_ctc
+save_path: ./outputs/
 
 train_conf:
   batch_size: 32

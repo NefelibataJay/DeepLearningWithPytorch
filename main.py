@@ -29,7 +29,7 @@ def main():
         # final save model
         if not os.path.exists(config.save_path):
             os.makedirs(config.save_path)
-        torch.save(model.state_dict(), os.path.join(config.save_path, f"{config.model_name}_final.pt"))
+        torch.save(model.state_dict(), os.path.join(config.save_path, "checkpoints", f"{config.model_name}_final.pt"))
     else:
         # TODO test model
         pass
