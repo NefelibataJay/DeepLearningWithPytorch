@@ -4,7 +4,7 @@ import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
-from util.tokenize.tokenizer import Tokenizer
+from tool.tokenize import Tokenizer
 
 
 class ConformerCTCTrainer:

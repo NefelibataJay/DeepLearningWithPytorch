@@ -1,6 +1,6 @@
 from tool.optimizer.warmup_lr_scheduler import WarmupLR
 from torch.optim.lr_scheduler import LambdaLR, StepLR, MultiStepLR, ExponentialLR, LinearLR, SequentialLR, CyclicLR, \
-    CosineAnnealingLR
+    CosineAnnealingLR, CosineAnnealingWarmRestarts, OneCycleLR
 from torch.optim import ASGD, SGD, Adagrad, Adam, Adamax, AdamW
 
 REGISTER_SCHEDULER = {
@@ -13,6 +13,8 @@ REGISTER_SCHEDULER = {
     "sequential_lr": SequentialLR,
     "cyclic_lr": CyclicLR,
     "cosine_annealing_lr": CosineAnnealingLR,
+    "cosine_annealing_warm_restarts": CosineAnnealingWarmRestarts,
+    "one_cycle_lr": OneCycleLR,
 }
 
 REGISTER_OPTIMIZER = {

@@ -1,7 +1,7 @@
 from typing import List
 import torch
 from omegaconf import DictConfig
-from util.tokenize.tokenizer import Tokenizer
+from tool.tokenize.tokenizer import Tokenizer
 
 
 class ChineseCharTokenizer(Tokenizer):

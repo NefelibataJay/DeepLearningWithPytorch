@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import random
-from util.tokenize import REGISTER_TOKENIZER
+from tool.tokenize import REGISTER_TOKENIZER
 from datasets import REGISTER_DATASET
 from tool.optimizer import REGISTER_OPTIMIZER, REGISTER_SCHEDULER
 from tool.loss import REGISTER_LOSS
