@@ -90,5 +90,5 @@ def init_metric(config):
     return metric
 
 
-def init_search():
+def init_search(search, tokenizer, device):
     pass

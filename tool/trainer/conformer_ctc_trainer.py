@@ -4,7 +4,10 @@ import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
+
+from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer
+from util.initialize import init_search
 
 
 class ConformerCTCTrainer:
@@ -21,6 +24,7 @@ class ConformerCTCTrainer:
         self.accum_grad = self.config.train_conf.accum_grad
         self.grad_clip = self.config.train_conf.grad_clip
         self.logger = SummaryWriter(os.path.join(self.config.save_path, "log", self.config.model_name))
+        self.search = None
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
@@ -77,11 +81,35 @@ class ConformerCTCTrainer:
         print("=========================Eval=========================")
         valid_loss = 0
         valid_acc = 0
-        for batch in tqdm(valid_dataloader):
+        bar = tqdm(enumerate(valid_dataloader), desc=f"Training Eval")
+        for idx, batch in bar:
             inputs, input_lengths, targets, target_lengths = batch
+            encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
+
+            loss = self.criterion(
+                hs_pad=logits,
+                ys_pad=targets,
+                h_lens=output_lengths,
+                ys_lens=target_lengths,
+            )
+            valid_loss += loss.item()
+
+            log_probs = logits.log_softmax(dim=-1)
+            hyps, _ = self.search(log_probs, input_lengths)
+            predictions = [self.tokenizer.int2text(sent) for sent in hyps]
+            targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
+            list_cer = []
+            for i, j in zip(predictions, targets):
+                self.metric.update(i, j)
+                list_cer.append(self.metric.compute())
+            char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
+            valid_acc += char_error_rate.item()
+
         valid_loss /= len(valid_dataloader)
         valid_acc /= len(valid_dataloader)
-        self.logger.add_scalar("valid_loss", self.scheduler.get_lr(), epoch)
+
+        self.logger.add_scalar("valid_loss", valid_loss, epoch)
+        self.logger.add_scalar("valid_acc", valid_acc, epoch)
         print("valid_loss:", valid_loss, "valid_acc:", valid_acc)
 
     def save_model(self, epoch):
@@ -89,3 +117,10 @@ class ConformerCTCTrainer:
             os.makedirs(self.config.save_path)
         torch.save(self.model.state_dict(),
                    os.path.join(self.config.save_path, "checkpoints", f"{self.config.model_name}_{epoch}.pt"))
+
+    def set_search(self, search):
+        self.search = init_search(self.config.search, self.tokenizer, self.device)
+
+    @torch.no_grad()
+    def test(self,model):
+        pass

@@ -27,6 +27,7 @@ def main():
         trainer.train(train_dataloader, valid_dataloader)
 
         # final save model
+        # TODO add SAVE BEST MODEL
         if not os.path.exists(config.save_path):
             os.makedirs(config.save_path)
         torch.save(model.state_dict(), os.path.join(config.save_path, "checkpoints", f"{config.model_name}_final.pt"))
