@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 from torch.utils.data import Dataset
 
 from tool.data_augmentations.speech_augment import SpecAugment
-from tool.tokenize import Tokenizer
+from tool.tokenize.tokenizer import Tokenizer
 
 
 class AishellDataset(Dataset):
