@@ -9,13 +9,13 @@ class CTC(torch.nn.Module):
 
     def __init__(
             self,
-            blank: int = 0,
+            blank_id: int = 0,
             reduction: str = 'sum',
             zero_infinity: bool = True,
     ):
         """ Construct CTC module """
         super().__init__()
-        self.ctc_loss = torch.nn.CTCLoss(blank=blank, reduction=reduction, zero_infinity=zero_infinity)
+        self.ctc_loss = torch.nn.CTCLoss(blank=blank_id, reduction=reduction, zero_infinity=zero_infinity)
 
     def forward(self, hs_pad: torch.Tensor, h_lens: torch.Tensor,
                 ys_pad: torch.Tensor, ys_lens: torch.Tensor) -> torch.Tensor:

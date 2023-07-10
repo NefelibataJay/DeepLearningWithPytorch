@@ -15,7 +15,7 @@
 import torch.nn as nn
 from torch import Tensor
 
-from model.modules.modules import Linear
+from models.modules.modules import Linear
 
 
 class PositionwiseFeedForward(nn.Module):

@@ -4,12 +4,13 @@ from torch import Tensor
 from torch.nn import Linear
 
 from models.encoder.conformer_encoder import ConformerEncoder
-from tool.tokenize import Tokenizer
+from tool.tokenize.tokenizer import Tokenizer
 
 
-class ConformerCTC(torch.nn):
-    def __init__(self, configs: DictConfig, tokenizer: Tokenizer) -> None:
-        super(ConformerCTC, self).__init__(configs=configs, tokenizer=tokenizer)
+class ConformerCTC(torch.nn.Module):
+    def __init__(self, configs: DictConfig) -> None:
+        super(ConformerCTC, self).__init__()
+        self.configs = configs
 
         self.encoder_configs = self.configs.model.encoder
         self.num_classes = self.configs.model.num_classes

@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import random
+
+from tool.search import REGISTER_SEARCH
 from tool.tokenize import REGISTER_TOKENIZER
 from datasets import REGISTER_DATASET
 from tool.optimizer import REGISTER_OPTIMIZER, REGISTER_SCHEDULER
@@ -45,12 +47,12 @@ def init_dataloader(config, tokenizer, stage='train'):
     if stage == 'train':
         train_datasets = REGISTER_DATASET[config.dataset_name](config, tokenizer, stage='train')
         valid_datasets = REGISTER_DATASET[config.dataset_name](config, tokenizer, stage='valid')
-        train_dataloader = DataLoader(train_datasets, shuffle=True, **config.dataloader)
-        valid_dataloader = DataLoader(valid_datasets, shuffle=True, **config.dataloader)
+        train_dataloader = DataLoader(train_datasets, shuffle=True, collate_fn=_collate_fn, **config.dataloader)
+        valid_dataloader = DataLoader(valid_datasets, shuffle=True, collate_fn=_collate_fn, **config.dataloader)
         return train_dataloader, valid_dataloader
     else:
         test_datasets = REGISTER_DATASET[config.dataset_name](config, tokenizer, stage='test')
-        test_dataloader = DataLoader(test_datasets, batch_size=config.dataloader.batch_size, shuffle=False)
+        test_dataloader = DataLoader(test_datasets, batch_size=5, shuffle=False, collate_fn=_collate_fn)
         return test_dataloader
 
 
@@ -90,5 +92,19 @@ def init_metric(config):
     return metric
 
 
-def init_search(search, tokenizer, device):
-    pass
+def init_search(config):
+    search = REGISTER_SEARCH[config.search_name]
+    return search
+
+def _collate_fn(batch):
+    inputs = [i[0] for i in batch]
+
+    input_lengths = torch.IntTensor([i[1] for i in batch])
+    targets = [torch.IntTensor(i[2]) for i in batch]
+    target_lengths = torch.IntTensor([i[3] for i in batch])
+
+    inputs = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=0)
+    targets = torch.nn.utils.rnn.pad_sequence(targets, batch_first=True, padding_value=0).to(dtype=torch.int)
+
+    return inputs, input_lengths, targets, target_lengths
+

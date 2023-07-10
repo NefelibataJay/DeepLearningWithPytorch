@@ -21,8 +21,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing import Optional, Tuple
 
-from model.modules.embedding import PositionalEncoding
-from model.modules.modules import Linear
+from models.modules.embedding import PositionalEncoding
+from models.modules.modules import Linear
 
 
 class DotProductAttention(nn.Module):

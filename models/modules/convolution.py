@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Tuple
 
-from model.modules.modules import Transpose
+from models.modules.modules import Transpose
 
 
 class DepthwiseConv1d(nn.Module):

@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="my_net" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Remote Python 3.9.16 (sftp://root@222.197.200.148:13158/data_disk/zlf/miniconda3/envs/speech_net/bin/python) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
