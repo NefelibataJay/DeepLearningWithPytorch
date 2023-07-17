@@ -25,70 +25,9 @@ from models.modules.embedding import PositionalEncoding
 from models.modules.modules import Linear
 
 
-class DotProductAttention(nn.Module):
-    r"""
-    Scaled Dot-Product Attention proposed in "Attention Is All You Need"
-    Compute the dot products of the query with all keys, divide each by sqrt(dim),
-    and apply a softmax function to obtain the weights on the values
-
-    Args: dim, mask
-        dim (int): dimension of attention
-        mask (torch.Tensor): tensor containing indices to be masked
-
-    Inputs: query, key, value, mask
-        - **query** (batch, q_len, d_model): tensor containing projection vector for decoders.
-        - **key** (batch, k_len, d_model): tensor containing projection vector for encoders.
-        - **value** (batch, v_len, d_model): tensor containing features of the encoded input sequence.
-        - **mask** (-): tensor containing indices to be masked
-
-    Returns: context, attn
-        - **context**: tensor containing the context vector from attention mechanism.
-        - **attn**: tensor containing the attention (alignment) from the encoders outputs.
-    """
-
-    def __init__(self, dim: int, scale: bool = True) -> None:
-        super(DotProductAttention, self).__init__()
-        if scale:
-            self.sqrt_dim = np.sqrt(dim)
-        else:
-            self.sqrt_dim = 1
-
-    def forward(
-            self,
-            query: Tensor,
-            key: Tensor,
-            value: Tensor,
-            mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
-        if len(query.size()) == 3:
-            score = torch.bmm(query, key.transpose(1, 2)) / self.sqrt_dim
-        else:
-            score = torch.matmul(query, key.transpose(2, 3)) / self.sqrt_dim
-
-        if mask is not None:
-            score.masked_fill_(mask, -1e4)
-
-        attn = F.softmax(score, -1)
-
-        if len(query.size()) == 3:
-            context = torch.bmm(attn, value)
-        else:
-            context = torch.matmul(attn, value)
-
-        return context, attn
-
-
 class MultiHeadAttention(nn.Module):
-    r"""
-    Multi-Head Attention proposed in "Attention Is All You Need"
-    Instead of performing a single attention function with d_model-dimensional keys, values, and queries,
-    project the queries, keys and values h times with different, learned linear projections to d_head dimensions.
-    These are concatenated and once again projected, resulting in the final values.
-    Multi-head attention allows the model to jointly attend to information from different representation
-    subspaces at different positions.
-
-    MultiHead(Q, K, V) = Concat(head_1, ..., head_h) · W_o
-        where head_i = Attention(Q · W_q, K · W_k, V · W_v)
+    """
+    "Attention Is All You Need"
 
     Args:
         dim (int): The dimension of model (default: 512)
@@ -105,17 +44,34 @@ class MultiHeadAttention(nn.Module):
         - **attn** (batch * num_heads, v_len): tensor containing the attention (alignment) from the encoders outputs.
     """
 
-    def __init__(self, dim: int = 512, num_heads: int = 8) -> None:
+    def __init__(self, d_model: int = 512, num_heads: int = 8, dropout_rate=0.1) -> None:
         super(MultiHeadAttention, self).__init__()
 
-        assert dim % num_heads == 0, "hidden_dim % num_heads should be zero."
+        assert d_model % num_heads == 0, "hidden_dim % num_heads should be zero."
 
-        self.d_head = int(dim / num_heads)
+        self.d_k = int(d_model / num_heads)
+
         self.num_heads = num_heads
-        self.query_proj = Linear(dim, self.d_head * num_heads)
-        self.key_proj = Linear(dim, self.d_head * num_heads)
-        self.value_proj = Linear(dim, self.d_head * num_heads)
-        self.scaled_dot_attn = DotProductAttention(dim, scale=True)
+        self.query_proj = Linear(d_model, d_model)
+        self.key_proj = Linear(d_model, d_model)
+        self.value_proj = Linear(d_model, d_model)
+        self.sqrt_dim = np.sqrt(self.d_k)
+        self.out_proj = Linear(d_model, d_model)
+        self.dropout = nn.Dropout(dropout_rate)
+
+    def scaled_dot_attn(self, query: Tensor, key: Tensor, value: Tensor, mask: Optional[Tensor] = None, ):
+        score = torch.matmul(query, key.transpose(2, 3)) / self.sqrt_dim
+
+        if mask is not None:
+            min_value = torch.finfo(score.dtype).min
+            score.masked_fill_(mask, min_value)
+            attn = torch.softmax(score, dim=-1).masked_fill(mask, 0.0)
+        else:
+            attn = F.softmax(score, -1)
+
+        context = torch.matmul(attn, value)
+
+        return context, attn
 
     def forward(
             self,
@@ -126,18 +82,20 @@ class MultiHeadAttention(nn.Module):
     ) -> Tuple[Tensor, Tensor]:
         batch_size = value.size(0)
 
-        query = self.query_proj(query).view(batch_size, -1, self.num_heads, self.d_head).transpose(1, 2)
-        key = self.key_proj(key).view(batch_size, -1, self.num_heads, self.d_head).transpose(1, 2)
-        value = self.value_proj(value).view(batch_size, -1, self.num_heads, self.d_head).transpose(1, 2)
+        query = self.query_proj(query).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
+        key = self.key_proj(key).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
+        value = self.value_proj(value).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
 
         if mask is not None:
             mask = mask.unsqueeze(1).repeat(1, self.num_heads, 1, 1)
 
         context, attn = self.scaled_dot_attn(query, key, value, mask)
 
-        context = context.transpose(1, 2).reshape(batch_size, -1, self.num_heads * self.d_head)
+        context = context.transpose(1, 2).reshape(batch_size, -1, self.num_heads * self.d_k)
 
-        return context, attn
+        context = self.out_proj(self.dropout(context))
+
+        return context
 
 
 class RelativeMultiHeadAttention(nn.Module):
@@ -182,6 +140,7 @@ class RelativeMultiHeadAttention(nn.Module):
         self.dropout = nn.Dropout(p=dropout_p)
         self.u_bias = nn.Parameter(torch.Tensor(self.num_heads, self.d_head))
         self.v_bias = nn.Parameter(torch.Tensor(self.num_heads, self.d_head))
+
         torch.nn.init.xavier_uniform_(self.u_bias)
         torch.nn.init.xavier_uniform_(self.v_bias)
 
@@ -198,8 +157,8 @@ class RelativeMultiHeadAttention(nn.Module):
         batch_size = value.size(0)
 
         query = self.query_proj(query).view(batch_size, -1, self.num_heads, self.d_head)
-        key = self.key_proj(key).view(batch_size, -1, self.num_heads, self.d_head).permute(0, 2, 1, 3)
-        value = self.value_proj(value).view(batch_size, -1, self.num_heads, self.d_head).permute(0, 2, 1, 3)
+        key = self.key_proj(key).view(batch_size, -1, self.num_heads, self.d_head).transpose(1, 2)
+        value = self.value_proj(value).view(batch_size, -1, self.num_heads, self.d_head).transpose(1, 2)
         pos_embedding = self.pos_proj(pos_embedding).view(batch_size, -1, self.num_heads, self.d_head)
 
         content_score = torch.matmul((query + self.u_bias).transpose(1, 2), key.transpose(2, 3))
@@ -467,4 +426,3 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         )  # (batch, head, time1, time2)
 
         return self.forward_attention(v, scores, mask)
-

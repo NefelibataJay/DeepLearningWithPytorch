@@ -58,9 +58,11 @@ def init_dataloader(config, tokenizer, stage='train'):
 
 def init_model(config):
     model = REGISTER_MODEL[config.model_name](config)
+    # TODO add weight init here if you want
+    # TODO load pretrained model, load weight here
     for p in model.parameters():
         if p.dim() > 1:
-            torch.nn.init.xavier_uniform_(p)
+            torch.nn.init.kaiming_normal_(p)
     print(model)
     return model
 

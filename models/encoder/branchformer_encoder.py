@@ -133,6 +133,7 @@ class BranchformerEncoder(torch.nn.Module):
         self.conv_subsample = Conv2dSubsampling(in_channels=1, output_dim=encoder_dim)
         self.input_projection = torch.nn.Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim)
         self.pos_enc = RelPositionalEncoding(encoder_dim, positional_dropout_rate)
+
         self.dropout = nn.Dropout(dropout_rate)
 
         self.encoders = torch.nn.ModuleList([
@@ -154,8 +155,12 @@ class BranchformerEncoder(torch.nn.Module):
         self.after_norm = nn.LayerNorm(encoder_dim)
 
     def forward(self, inputs: Tensor, input_lengths: Tensor, ):
+        """
+            Args:
+
+        """
         outputs, outputs_lengths = self.conv_subsample(inputs, input_lengths)
-        outputs = self.pos_enc(self.dropout(self.input_projection(outputs)))
+        outputs = self.pos_enc(self.input_projection(outputs))
         """ 
         We believe that Espnet made some errors in calculating the Mask length after the convolution
         So we use the following code to calculate the mask length
@@ -163,11 +168,10 @@ class BranchformerEncoder(torch.nn.Module):
         masks = (~make_pad_mask(outputs_lengths)[:, None, :])
 
         for layer in self.encoders:
-            outputs = layer(outputs, masks)
+            outputs,masks = layer(outputs, masks)
 
         if isinstance(outputs, tuple):
             outputs = outputs[0]
         outputs = self.after_norm(outputs)
-        outputs_lengths = masks.squeeze(1).sum(1)
 
         return outputs, outputs_lengths
