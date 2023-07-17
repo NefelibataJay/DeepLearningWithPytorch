@@ -1,7 +1,5 @@
-import torch
-
 from tool.common import remove_duplicates_and_blank
-from tool.mask import *
+from models.modules.mask import *
 
 
 def ctc_greedy_search(

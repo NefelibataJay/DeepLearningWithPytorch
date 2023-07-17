@@ -166,12 +166,12 @@ class Conv2dSubsampling(nn.Module):
         - **output_lengths** (batch): list of sequence output lengths
     """
 
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, output_dim: int, in_channels: int = 1) -> None:
         super(Conv2dSubsampling, self).__init__()
         self.sequential = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2),
+            nn.Conv2d(in_channels, output_dim, kernel_size=3, stride=2),
             nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2),
+            nn.Conv2d(output_dim, output_dim, kernel_size=3, stride=2),
             nn.ReLU(),
         )
 
@@ -183,6 +183,8 @@ class Conv2dSubsampling(nn.Module):
         outputs = outputs.permute(0, 2, 1, 3).contiguous().view(batch_size, t, channels * f)
 
         # transfer true input_length
+        # len1 = (un_pad len - 3 +1 ) // 2
+        # len2 = (len1 - 3 + 1) // 2
         output_lengths = input_lengths >> 2
         output_lengths -= 1
 

@@ -19,45 +19,22 @@ from models.modules.modules import Linear
 
 
 class PositionwiseFeedForward(nn.Module):
-    """
-    Position-wise Feedforward Networks proposed in "Attention Is All You Need".
-    Fully connected feed-forward network, which is applied to each position separately and identically.
-    This consists of two linear transformations with a ReLU activation in between.
-    Another way of describing this is as two convolutions with kernel size 1.
-    """
-
-    def __init__(self, d_model: int = 256, d_ff: int = 2048, dropout_p: float = 0.1) -> None:
+    def __init__(self, encoder_dim: int = 256, hidden_units: int = 2048, dropout_p: float = 0.1) -> None:
         super(PositionwiseFeedForward, self).__init__()
-        self.feed_forward = nn.Sequential(
-            nn.Linear(d_model, d_ff),
-            nn.Dropout(dropout_p),
+        self.sequential = nn.Sequential(
+            nn.LayerNorm(encoder_dim, eps=1e-5),
+            nn.Linear(encoder_dim, hidden_units),
             nn.ReLU(),
-            nn.Linear(d_ff, d_model),
+            nn.Dropout(dropout_p),
+            nn.Linear(hidden_units, encoder_dim),
             nn.Dropout(dropout_p),
         )
 
     def forward(self, inputs: Tensor) -> Tensor:
-        return self.feed_forward(inputs)
+        return self.sequential(inputs)
 
 
 class FeedForwardModule(nn.Module):
-    """
-    Conformer Feed Forward Module follow pre-norm residual units and apply layer normalization within the residual unit
-    and on the input before the first linear layer. This module also apply Swish activation and dropout, which helps
-    regularizing the network.
-
-    Args:
-        encoder_dim (int): Dimension of conformer encoder
-        expansion_factor (int): Expansion factor of feed forward module.
-        dropout_p (float): Ratio of dropout
-
-    Inputs: inputs
-        - **inputs** (batch, time, dim): Tensor contains input sequences
-
-    Outputs: outputs
-        - **outputs** (batch, time, dim): Tensor produces by feed forward module.
-    """
-
     def __init__(
             self,
             encoder_dim: int = 256,

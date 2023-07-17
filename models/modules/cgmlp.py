@@ -41,13 +41,6 @@ class ConvolutionalSpatialGatingUnit(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout_rate)
 
-    def espnet_initialization_fn(self):
-        torch.nn.init.normal_(self.conv.weight, std=1e-6)
-        torch.nn.init.ones_(self.conv.bias)
-        if self.linear is not None:
-            torch.nn.init.normal_(self.linear.weight, std=1e-6)
-            torch.nn.init.ones_(self.linear.bias)
-
     def forward(self, x, gate_add=None):
         """Forward method
 
@@ -85,7 +78,6 @@ class ConvolutionalGatingMLP(torch.nn.Module):
             kernel_size: int,
             dropout_rate: float,
             use_linear_after_conv: bool,
-            gate_activation: str,
     ):
         super().__init__()
 

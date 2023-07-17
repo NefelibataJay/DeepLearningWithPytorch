@@ -140,7 +140,6 @@ class ConformerEncoder(nn.Module):
 
     def __init__(
             self,
-            num_classes: int,
             input_dim: int = 80,
             encoder_dim: int = 256,
             num_layers: int = 12,
@@ -155,7 +154,7 @@ class ConformerEncoder(nn.Module):
             half_step_residual: bool = True,
     ):
         super(ConformerEncoder, self).__init__()
-        self.conv_subsample = Conv2dSubsampling(in_channels=1, out_channels=encoder_dim)
+        self.conv_subsample = Conv2dSubsampling(in_channels=1, output_dim=encoder_dim)
         self.input_projection = nn.Sequential(
             Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim),
             ## TODO add RelPositionalEncoding

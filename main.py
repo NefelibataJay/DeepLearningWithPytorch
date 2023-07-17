@@ -19,7 +19,7 @@ def main():
     config.dataset.manifest_path = args.manifest_path
     config.save_path = args.save_path
 
-    assert  args.stage in ["train", "test"], "stage must be train or test"
+    assert args.stage in ["train", "test"], "stage must be train or test"
 
     if args.stage == "train":
         model, tokenizer, optimizer, scheduler, criterion, metric, train_dataloader, valid_dataloader, = init_config(

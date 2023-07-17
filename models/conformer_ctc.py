@@ -16,7 +16,6 @@ class ConformerCTC(torch.nn.Module):
         self.num_classes = self.configs.model.num_classes
 
         self.encoder = ConformerEncoder(
-            num_classes=self.configs.model.num_classes,
             input_dim=self.encoder_configs.input_dim,
             encoder_dim=self.encoder_configs.encoder_dim,
             num_layers=self.encoder_configs.num_encoder_layers,
