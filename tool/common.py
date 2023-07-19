@@ -78,7 +78,7 @@ def add_blank(ys_pad: torch.Tensor, blank: int,
     """ Prepad blank for transducer predictor
 
     Args:
-        ignore_id:
+        ignore_id: padding index
         ys_pad (torch.Tensor): batch of padded target sequences (B, Lmax)
         blank (int): index of <blank>
 
@@ -102,3 +102,13 @@ def add_blank(ys_pad: torch.Tensor, blank: int,
     _blank = _blank.repeat(bs).unsqueeze(1)  # [bs,1]
     out = torch.cat([_blank, ys_pad], dim=1)  # [bs, Lmax+1]
     return torch.where(out == ignore_id, blank, out)
+
+
+if __name__ == "__main__":
+    blank = 3
+    ys_pad = torch.tensor([[1, 2, 3, 4, 5],
+                           [4, 5, 6, 0, 0],
+                           [7, 8, 9, 0, 0]], dtype=torch.int32)
+    print(add_blank(ys_pad, blank, ignore_id=0))
+    rnnt_text = torch.where(ys_pad == 0, -1, ys_pad).to(torch.int32)
+    print(rnnt_text)

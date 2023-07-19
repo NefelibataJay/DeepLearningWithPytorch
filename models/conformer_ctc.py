@@ -4,7 +4,6 @@ from torch import Tensor
 from torch.nn import Linear
 
 from models.encoder.conformer_encoder import ConformerEncoder
-from tool.tokenize.tokenizer import Tokenizer
 
 
 class ConformerCTC(torch.nn.Module):
