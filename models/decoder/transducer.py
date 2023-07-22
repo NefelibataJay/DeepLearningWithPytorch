@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -49,7 +49,7 @@ class TransducerJoint(nn.Module):
 
 class RnnPredictor(nn.Module):
     def __init__(self,
-                 voca_size: int,
+                 vocab_size: int,
                  embed_size: int,
                  hidden_size: int = 1048,
                  output_size: int = 256,
@@ -58,10 +58,10 @@ class RnnPredictor(nn.Module):
                  rnn_dropout: float = 0.1,
                  rnn_type: str = "lstm",
                  bias: bool = True,
-                 blank: int = 0,
+                 pad: int = 0,
                  ):
         super().__init__()
-        self.embed = nn.Embedding(voca_size, embed_size, padding_idx=blank)
+        self.embed = nn.Embedding(vocab_size, embed_size, padding_idx=pad)
         self.dropout = nn.Dropout(embed_dropout)
 
         self.n_layers = num_layers
@@ -73,45 +73,28 @@ class RnnPredictor(nn.Module):
             num_layers=num_layers,
             bias=bias,
             batch_first=True,
-            dropout=rnn_dropout
+            dropout=rnn_dropout,
+            bidirectional=False,
         )
 
         self.final_projection = nn.Linear(hidden_size, output_size)
 
-    def forward(self, inputs: Tensor, cache: Optional[List[torch.Tensor]] = None, ) -> torch.Tensor:
+    def forward(self, inputs: Tensor, input_lengths: Optional[List[torch.Tensor]] = None,
+                hidden_states: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
+        Forward  `inputs` (targets) for training.
+
         Args:
-            inputs (torch.Tensor): [batch, max_time).
-            cache : rnn predictor cache[0] == state_m
-                    cache[1] == state_c
+            inputs : [batch, target_length).
+            input_lengths : [batch]
+            hidden_states : Previous hidden states.
         """
         embed = self.dropout(self.embed(inputs))
-        if cache is None:
-            state = self.init_state(batch_size=inputs.size(0),
-                                    device=inputs.device)
-            states = (state[0], state[1])
-        state = self.init_state(batch_size=inputs.size(0),
-                                device=inputs.device)
-        states = (state[0], state[1])
 
-        outputs, hidden_states = self.rnn(embed, states)
-        outputs = self.projection(outputs)
-        return outputs
+        if hidden_states is not None:
+            outputs, hidden_states = self.rnn(embed, hidden_states)
+        else:
+            outputs, hidden_states = self.rnn(embed)
 
-    def init_state(
-        self,
-        batch_size: int,
-        device: torch.device,
-    ) -> List[torch.Tensor]:
-        assert batch_size > 0
-        return [
-            torch.zeros(1 * self.n_layers,
-                        batch_size,
-                        self.hidden_size,
-                        device=device),
-            torch.zeros(1 * self.n_layers,
-                        batch_size,
-                        self.hidden_size,
-                        device=device)
-        ]
-
+        outputs = self.final_projection(outputs)
+        return outputs, hidden_states

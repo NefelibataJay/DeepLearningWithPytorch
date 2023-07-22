@@ -1,0 +1,93 @@
+seed: 42
+tokenizer_name: chinese_char
+dataset_name: aishell
+model_name: conformer_transducer
+loss_name: transducer_loss
+optimizer_name: adam
+scheduler_name: gradual_warmup_lr
+metric_name: cer
+save_path: ./outputs/
+search_name:
+
+train_conf:
+  batch_size: 32
+  max_epoch: 50
+  valid_interval: 5
+  save_interval: 10
+  accum_grad: 4
+  grad_clip: 5
+
+tokenizer:
+  word_dict_path: ../manifests/aishell_chars/vocab.txt
+  pad_id: 0
+  sos_id: 1
+  eos_id: 2
+  blank_id: 3
+  unk_id: 4
+
+dataset:
+  dataset_path: /data/datasets/aishell/data_aishell
+  manifest_path: ../manifests/aishell_chars
+  feature_types: fbank
+  num_mel_bins: 80
+  sample_rate: 16000
+
+  spec_aug: True
+  spec_aug_conf:
+    max_t_mask: 20
+    max_f_mask: 10
+    num_t_mask: 2
+    num_f_mask: 2
+
+dataloader:
+  batch_size: ${train_conf.batch_size}
+  num_workers: 0
+  pin_memory: True
+  drop_last: True
+
+model:
+  num_classes: ??
+  encoder:
+    input_dim: ${dataset.num_mel_bins}
+    encoder_dim: 512
+    num_encoder_layers: 12
+    num_attention_heads: 8
+    feed_forward_expansion_factor: 4
+    conv_expansion_factor: 2
+    input_dropout_p: 0.1
+    feed_forward_dropout_p: 0.1
+    attention_dropout_p: 0.1
+    conv_dropout_p: 0.1
+    conv_kernel_size: 31
+    half_step_residual: True
+
+  predictor:
+    embed_size: 512
+    hidden_size: 1024
+    predictor_dim: 512
+    num_layers: 2
+    embed_dropout: 0.1
+    rnn_dropout: 0.1
+    rnn_type: lstm
+
+  joint:
+    encoder_dim: ${model.encoder.encoder_dim}
+    predictor_dim: ${model.predictor.predictor_dim}
+
+optimizer:
+  lr: 0.002
+  betas: [ 0.9, 0.98 ]
+#  weight_decay: 1e-3
+
+lr_scheduler:
+  multiplier: 1.0
+  warmup_epochs: 10
+  T_max: ${train_conf.max_epoch} - ${lr_scheduler.warmup_epochs}
+
+loss:
+  blank_id: ${tokenizer.blank_id}
+  pad_id: ${tokenizer.pad_id}
+
+metric:
+  ignore_case: True
+  reduction: mean

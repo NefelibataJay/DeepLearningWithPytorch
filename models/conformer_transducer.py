@@ -2,14 +2,14 @@ import torch
 import torchaudio
 from omegaconf import DictConfig
 
-from models.decoder.transducer import TransducerJoint
+from models.decoder.transducer import TransducerJoint, RnnPredictor
 from models.encoder.conformer_encoder import ConformerEncoder
 from tool.common import add_blank
 
 
-class ConformerCTC(torch.nn.Module):
+class ConformerTransducer(torch.nn.Module):
     def __init__(self, configs: DictConfig) -> None:
-        super(ConformerCTC, self).__init__()
+        super(ConformerTransducer, self).__init__()
         self.configs = configs
 
         self.encoder_configs = self.configs.model.encoder
@@ -40,7 +40,20 @@ class ConformerCTC(torch.nn.Module):
             pred_output_size=self.joint_configs.predictor_dim,
         )
 
-        self.predictor = RnnPredictor()
+        self.predictor_config = self.configs.model.predictor
+
+        self.predictor = RnnPredictor(
+            vocab_size=self.num_classes,
+            embed_size=self.predictor_config.embed_size,
+            hidden_size=self.predictor_config.hidden_size,
+            output_size=self.predictor_config.predictor_dim,
+            num_layers=self.predictor_config.num_layers,
+            embed_dropout=self.predictor_config.embed_dropout,
+            rnn_dropout=self.predictor_config.rnn_dropout,
+            rnn_type=self.rnn_type,
+            pad=self.pad_id,
+        )
+
 
     def forward(self, speech: torch.Tensor, speech_lengths: torch.Tensor, text: torch.Tensor,
                 text_lengths: torch.Tensor):
@@ -50,7 +63,7 @@ class ConformerCTC(torch.nn.Module):
         ys_in_pad = add_blank(text, self.blank_id, self.pad_id)
         #  [B, max_text_len + 1]  <pad> -> <blank>
 
-        predictor_out = self.predictor(ys_in_pad)
+        predictor_out, hidden_states = self.predictor(ys_in_pad)
 
         joint_out = self.joint(encoder_outputs, predictor_out)
 
@@ -65,3 +78,7 @@ class ConformerCTC(torch.nn.Module):
                                                reduction="mean")
 
         return loss
+
+    @torch.no_grad()
+    def recognize(self):
+        pass
