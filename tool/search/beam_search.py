@@ -1,17 +1,36 @@
 import torch
 import torch.nn.functional as F
-from torch.nn import TransformerDecoder, TransformerEncoderLayer
+
+from tool.search.base_search import Search
+from tool.search.hypotheses import BeamHypotheses
 
 
-class BeamSearch:
-    def __init__(self, beam_size: int = 10, search_type: str = 'greedy', max_length: int = 100, sos_id: int = 1,
-                 eos_id: int = 2, pad_id: int = 0):
-        self.beam_size = beam_size
-        self.search_type = search_type
-        self.max_length = max_length
-        self.sos_id = sos_id
-        self.eos_id = eos_id
-        self.pad_id = pad_id
+class BeamSearch(Search):
+    def __init__(self, length_penalty: int = 0, beam_size: int = 1, max_length: int = 100, sos_id: int = 1,
+                 eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
+        super(BeamSearch, self).__init__(beam_size, max_length, sos_id, eos_id, blank_id, pad_id)
+
+        self.length_penalty = length_penalty
+
+    def __call__(self, log_probs, output_lens, decode_type="ctc"):
+        assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
+        if type == "ctc":
+            hyps, scores = self.ctc_beam_search(log_probs, output_lens)
+        elif type == "attention":
+            # TODO : attention beam search
+            pass
+        elif type == "transducer":
+            # TODO : transducer beam search
+            pass
+
+        return hyps, scores
+
+    def ctc_beam_search(self, log_probs: torch.Tensor, output_lens: torch.Tensor):
+        batch_size = log_probs.shape[0]
+        topk_prob, topk_index = log_probs.topk(self.beam_size, dim=2)
+        hyps = None
+        scores = None
+        return hyps, scores
 
 
 def transformer_beam_search(decoder, beam_size, encoder_outputs):

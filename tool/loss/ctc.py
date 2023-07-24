@@ -15,6 +15,8 @@ class CTC(torch.nn.Module):
     ):
         """ Construct CTC module """
         super().__init__()
+        self.blank_id = blank_id
+        self.reduction = reduction
         self.ctc_loss = torch.nn.CTCLoss(blank=blank_id, reduction=reduction, zero_infinity=zero_infinity)
 
     def forward(self, hs_pad: torch.Tensor, h_lens: torch.Tensor,
@@ -30,5 +32,6 @@ class CTC(torch.nn.Module):
         ys_hat = hs_pad.transpose(0, 1).log_softmax(dim=-1)
         loss = self.ctc_loss(ys_hat, ys_pad, h_lens, ys_lens)
         # Batch-size average
-        loss = loss / ys_hat.size(1)
+        if self.reduction == 'sum':
+            loss = loss / ys_hat.size(1)
         return loss

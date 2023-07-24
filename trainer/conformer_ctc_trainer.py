@@ -97,12 +97,12 @@ class ConformerCTCTrainer:
             valid_loss += loss.item()
 
             log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths)
+            hyps, _ = self.search(log_probs, input_lengths, decode_type="ctc")
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []
             for i, j in zip(predictions, targets):
-                list_cer.append(self.metric(i,j))
+                list_cer.append(self.metric(i, j))
             char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
             valid_acc += char_error_rate
             bar.set_postfix(loss='{:.4f}'.format(loss.item()))
@@ -130,7 +130,7 @@ class ConformerCTCTrainer:
 
             # compute CER
             log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths)
+            hyps, _ = self.search(log_probs, input_lengths, decode_type="ctc")
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []

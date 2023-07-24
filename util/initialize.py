@@ -95,7 +95,7 @@ def init_metric(config):
 
 
 def init_search(config):
-    search = REGISTER_SEARCH[config.search_name]
+    search = REGISTER_SEARCH[config.search_name](**config.search)
     return search
 
 def _collate_fn(batch):

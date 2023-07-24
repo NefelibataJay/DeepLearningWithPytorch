@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 from omegaconf import DictConfig
+from torchaudio.transforms import RNNTLoss
 
 from models.decoder.transducer import TransducerJoint, RnnPredictor
 from models.encoder.conformer_encoder import ConformerEncoder
@@ -14,6 +15,8 @@ class ConformerTransducer(torch.nn.Module):
 
         self.encoder_configs = self.configs.model.encoder
         self.num_classes = self.configs.model.num_classes
+        self.sos_id = self.configs.tokenizer.sos_id
+        self.eos_id = self.configs.tokenizer.eos_id
         self.pad_id = self.configs.tokenizer.pad_id
         self.blank_id = self.configs.tokenizer.blank_id
 
@@ -54,10 +57,10 @@ class ConformerTransducer(torch.nn.Module):
             pad=self.pad_id,
         )
 
+        self.criterion = RNNTLoss(blank=self.blank_id, reduction="mean")
 
     def forward(self, speech: torch.Tensor, speech_lengths: torch.Tensor, text: torch.Tensor,
                 text_lengths: torch.Tensor):
-
         encoder_outputs, output_lengths = self.encoder(speech, speech_lengths)
 
         ys_in_pad = add_blank(text, self.blank_id, self.pad_id)
@@ -76,7 +79,6 @@ class ConformerTransducer(torch.nn.Module):
                                                rnnt_text_lengths,
                                                blank=self.blank_id,
                                                reduction="mean")
-
         return loss
 
     @torch.no_grad()

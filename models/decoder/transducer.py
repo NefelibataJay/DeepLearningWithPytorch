@@ -14,15 +14,21 @@ class TransducerJoint(nn.Module):
     def __init__(self,
                  vocab_size: int,
                  enc_output_size: int = 256,
-                 pred_output_size: int = 256, ):
+                 pred_output_size: int = 256,
+                 joint_dim: int = 512,
+                 joint_type: str = "concat",):
         super().__init__()
-        # TODO optional for pre_fc
+        assert joint_type in ["add", "concat"], "joint_type must be in ['add', 'concat']"
+        self.joint_type = joint_type
 
-        self.joint_dim = enc_output_size + pred_output_size
+        if joint_type == "add":
+            self.lin_enc = torch.nn.Linear(enc_output_size, joint_dim)
+            self.lin_dec = torch.nn.Linear(pred_output_size, joint_dim, bias=False)
+        elif joint_type == "concat":
+            self.f1 = nn.Linear(enc_output_size + pred_output_size, self.joint_dim)
 
-        self.f1 = nn.Linear(self.joint_dim, self.joint_dim, bias=True)
-        self.tanh = nn.Tanh()
-        self.f2 = nn.Linear(self.joint_dim, vocab_size, bias=True)
+        self.activation = nn.Tanh()  # TODO : support other activation function
+        self.out_pro = nn.Linear(self.joint_dim, vocab_size)
 
     def forward(self, encoder_outputs: Tensor, decoder_outputs: Tensor):
         """
@@ -32,16 +38,24 @@ class TransducerJoint(nn.Module):
         Return:
             [B,input_length,target_length,joint_dim]
         """
-        input_length = encoder_outputs.size(1)
-        target_length = decoder_outputs.size(1)
+        outputs = None
 
-        encoder_outputs = encoder_outputs.unsqueeze(2)
-        decoder_outputs = decoder_outputs.unsqueeze(1)
+        if self.joint_type == "add":
+            e_outputs = self.lin_enc(encoder_outputs)
+            d_outputs = self.lin_dec(decoder_outputs)
+            outputs = e_outputs + d_outputs
+        elif self.joint_type == "concat":
+            input_length = encoder_outputs.size(1)
+            target_length = decoder_outputs.size(1)
 
-        encoder_outputs = encoder_outputs.repeat([1, 1, target_length, 1])
-        decoder_outputs = decoder_outputs.repeat([1, input_length, 1, 1])
+            encoder_outputs = encoder_outputs.unsqueeze(2)
+            decoder_outputs = decoder_outputs.unsqueeze(1)
 
-        outputs = torch.cat((encoder_outputs, decoder_outputs), dim=-1)
+            encoder_outputs = encoder_outputs.repeat([1, 1, target_length, 1])
+            decoder_outputs = decoder_outputs.repeat([1, input_length, 1, 1])
+
+            outputs = torch.cat((encoder_outputs, decoder_outputs), dim=-1)
+
         logits = self.fc(outputs).log_softmax(dim=-1)
 
         return logits
@@ -57,7 +71,6 @@ class RnnPredictor(nn.Module):
                  embed_dropout: float = 0.1,
                  rnn_dropout: float = 0.1,
                  rnn_type: str = "lstm",
-                 bias: bool = True,
                  pad: int = 0,
                  ):
         super().__init__()
@@ -67,26 +80,22 @@ class RnnPredictor(nn.Module):
         self.n_layers = num_layers
         self.hidden_size = hidden_size
 
-        self.rnn = RNN_TYPE[rnn_type](
-            input_size=embed_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            bias=bias,
-            batch_first=True,
-            dropout=rnn_dropout,
-            bidirectional=False,
-        )
+        self.decoder = RNN_TYPE[rnn_type](
+                input_size=embed_size,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                batch_first=True,
+                dropout=rnn_dropout,
+            )
 
         self.final_projection = nn.Linear(hidden_size, output_size)
 
-    def forward(self, inputs: Tensor, input_lengths: Optional[List[torch.Tensor]] = None,
-                hidden_states: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, inputs: Tensor, hidden_states: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward  `inputs` (targets) for training.
 
         Args:
-            inputs : [batch, target_length).
-            input_lengths : [batch]
+            inputs : [batch, target_length). labels
             hidden_states : Previous hidden states.
         """
         embed = self.dropout(self.embed(inputs))

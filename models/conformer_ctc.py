@@ -4,6 +4,7 @@ from torch import Tensor
 from torch.nn import Linear
 
 from models.encoder.conformer_encoder import ConformerEncoder
+from tool.loss import CTC
 
 
 class ConformerCTC(torch.nn.Module):
@@ -13,6 +14,10 @@ class ConformerCTC(torch.nn.Module):
 
         self.encoder_configs = self.configs.model.encoder
         self.num_classes = self.configs.model.num_classes
+        self.sos_id = self.configs.tokenizer.sos_id
+        self.eos_id = self.configs.tokenizer.eos_id
+        self.pad_id = self.configs.tokenizer.pad_id
+        self.blank_id = self.configs.tokenizer.blank_id
 
         self.encoder = ConformerEncoder(
             input_dim=self.encoder_configs.input_dim,
@@ -34,4 +39,5 @@ class ConformerCTC(torch.nn.Module):
     def forward(self, inputs: Tensor, input_lengths: Tensor):
         encoder_outputs, output_lengths = self.encoder(inputs, input_lengths)
         logits = self.fc(encoder_outputs)
+
         return encoder_outputs, output_lengths, logits

@@ -7,7 +7,7 @@ optimizer_name: adam
 scheduler_name: gradual_warmup_lr
 metric_name: cer
 save_path: ./outputs/
-search_name: ctc_greedy_search
+search_name: greedy_search
 
 train_conf:
   batch_size: 32
@@ -77,3 +77,11 @@ loss:
 metric:
   ignore_case: True
   reduction: mean
+
+search:
+  max_length : 100
+  beam_size : 1
+  sos_id : ${tokenizer.sos_id}
+  eos_id : ${tokenizer.eos_id}
+  pad_id : ${tokenizer.pad_id}
+  blank_id : ${tokenizer.blank_id}
