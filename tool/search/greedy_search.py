@@ -1,33 +1,77 @@
+import torch
+
 from tool.common import remove_duplicates_and_blank
 from models.modules.mask import *
+from tool.search.base_search import Search
 
 
-def ctc_greedy_search(
-        log_probs: torch.Tensor,
-        encoder_out_lens: torch.Tensor,
-        eos: int = 2,
-):
-    beam_size = 1
-    batch_size = log_probs.shape[0]
+class GreedySearch(Search):
+    def __init__(self, max_length, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
+        super(GreedySearch, self).__init__(max_length=max_length, sos_id=sos_id, eos_id=eos_id, blank_id=blank_id,
+                                           pad_id=pad_id)
 
-    maxlen = log_probs.size(1)
+    def __call__(self, log_probs,output_lens, decode_type="ctc"):
+        assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
+        if type == "ctc":
+            hyps, scores = self.ctc_greedy_search(log_probs, output_lens)
+        elif type == "attention":
+            # TODO : attention greedy search
+            pass
+        elif type == "transducer":
+            # TODO : transducer greedy search
+            pass
 
-    # topk_index = log_probs.argmax(-1)
-    topk_prob, topk_index = log_probs.topk(beam_size, dim=2)
+        return hyps, scores
 
-    topk_index = topk_index.view(batch_size, maxlen)  # (B, maxlen)
+    def ctc_greedy_search(self, log_probs: torch.Tensor, encoder_out_lens: torch.Tensor):
+        batch_size = log_probs.shape[0]
+        maxlen = self.max_length
 
-    mask = make_pad_mask(encoder_out_lens, maxlen)  # (B, maxlen)
+        # topk_index = log_probs.argmax(-1)
+        topk_prob, topk_index = log_probs.topk(1, dim=2)
 
-    topk_index = topk_index.masked_fill_(mask, eos)  # (B, maxlen)
+        topk_index = topk_index.view(batch_size, maxlen)  # (B, maxlen)
 
-    hyps = [hyp.tolist() for hyp in topk_index]
+        mask = make_pad_mask(encoder_out_lens, maxlen)  # (B, maxlen)
 
-    scores = topk_prob.max(1)
+        topk_index = topk_index.masked_fill_(mask, self.eos_id)  # (B, maxlen)
 
-    hyps = [remove_duplicates_and_blank(hyp) for hyp in hyps]
+        hyps = [hyp.tolist() for hyp in topk_index]
 
-    return hyps, scores
+        scores = topk_prob.max(1)
+
+        hyps = [remove_duplicates_and_blank(hyp) for hyp in hyps]
+
+        return hyps, scores
+
+
+def transducer_greedy_search(transducer_model, encoder_inputs, max_length: int = 128):
+    """
+    transducer_model : Transducer
+    encoder_inputs : (batch_size, max_length, dim)
+    """
+    outputs = list()
+    encoder_outputs, output_lengths = transducer_model.encoder(encoder_inputs)
+    for encoder_output in encoder_outputs:
+        pred_tokens = list()
+        decoder_input = encoder_output.new_zeros(1, 1).fill_(transducer_model.decoder.sos_id).long()
+        decoder_output, hidden_state = transducer_model.decoder(decoder_input)
+
+        for t in range(max_length):
+            step_output = transducer_model.joint(encoder_output[t].view(-1), decoder_output.view(-1))
+
+            pred_token = step_output.argmax(dim=0)
+            pred_token = int(pred_token.item())
+            pred_tokens.append(pred_token)
+
+            decoder_input = torch.LongTensor([[pred_token]])
+            if torch.cuda.is_available():
+                decoder_input = decoder_input.cuda()
+
+            decoder_output, hidden_state = transducer_model.decoder(decoder_input, hidden_states=hidden_state)
+
+        outputs.append(torch.LongTensor(pred_tokens))
+    return torch.stack(outputs, dim=0)
 
 
 def transformer_greedy_search(decoder, encoder_outputs, encoder_output_lengths):
