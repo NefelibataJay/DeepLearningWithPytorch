@@ -22,11 +22,15 @@ class ConformerCTCTrainer:
         self.metric = metric
         self.device = device
         self.accum_grad = self.config.train_conf.accum_grad
-        self.grad_clip = self.config.train_conf.grad_clip
+        if self.config.train_conf.grad_clip is not None:
+            self.grad_clip = self.config.train_conf.grad_clip
         self.logger = SummaryWriter(os.path.join(self.config.save_path, "log", self.config.model_name))
         self.search = init_search(self.config)
+        # TODO add early stop
 
     def train(self, train_dataloader, valid_dataloader):
+        # first validate
+        self.validate(valid_dataloader, -1)
         self.model.to(self.device)
         print("=========================Start Training=========================")
         for epoch in range(self.config.train_conf.max_epoch + 1):
@@ -55,7 +59,8 @@ class ConformerCTCTrainer:
                 loss.backward()
 
                 if (idx + 1) % self.accum_grad == 0 or (idx + 1) == len(train_dataloader):
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2)
+                    if self.grad_clip is not None:
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2)
                     self.optimizer.step()
                     self.optimizer.zero_grad()
 
@@ -106,6 +111,7 @@ class ConformerCTCTrainer:
             char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
             valid_acc += char_error_rate
             bar.set_postfix(loss='{:.4f}'.format(loss.item()))
+            bar.set_postfix(acc='{:.4f}'.format(valid_acc))
 
         valid_loss /= len(valid_dataloader)
         valid_acc /= len(valid_dataloader)

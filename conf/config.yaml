@@ -80,7 +80,6 @@ metric:
 
 search:
   max_length : 100
-  beam_size : 1
   sos_id : ${tokenizer.sos_id}
   eos_id : ${tokenizer.eos_id}
   pad_id : ${tokenizer.pad_id}

@@ -7,7 +7,7 @@ curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
-from trainer import ConformerCTCTrainer
+from trainer.conformer_ctc_trainer import ConformerCTCTrainer
 from util.initialize import init_config
 
 

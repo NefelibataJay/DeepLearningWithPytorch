@@ -14,12 +14,12 @@ class BeamSearch(Search):
 
     def __call__(self, log_probs, output_lens, decode_type="ctc"):
         assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if type == "ctc":
+        if decode_type == "ctc":
             hyps, scores = self.ctc_beam_search(log_probs, output_lens)
-        elif type == "attention":
+        elif decode_type == "attention":
             # TODO : attention beam search
             pass
-        elif type == "transducer":
+        elif decode_type == "transducer":
             # TODO : transducer beam search
             pass
 

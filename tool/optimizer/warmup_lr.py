@@ -24,11 +24,13 @@ class WarmupLR(_LRScheduler):
     def __init__(
             self,
             optimizer: torch.optim.Optimizer,
-            warmup_epoch: Union[int, float] = 20,
+            warmup_steps: Union[int, float] = 25000,
+            # warmup_epoch: Union[int, float] = 20,
             last_epoch: int = -1,
     ):
         self.last_epoch = last_epoch
-        self.warmup_epoch = warmup_epoch
+        self.warmup_steps = warmup_steps
+        # self.warmup_epoch = warmup_epoch
 
         super().__init__(optimizer, last_epoch)
 
@@ -39,7 +41,7 @@ class WarmupLR(_LRScheduler):
         step_num = self.last_epoch + 1
         return [
             lr
-            * self.warmup_epoch ** 0.5
-            * min(step_num ** -0.5, step_num * self.warmup_epoch ** -1.5)
+            * self.warmup_steps ** 0.5
+            * min(step_num ** -0.5, step_num * self.warmup_steps ** -1.5)
             for lr in self.base_lrs
         ]

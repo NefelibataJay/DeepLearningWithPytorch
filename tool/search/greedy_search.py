@@ -12,12 +12,12 @@ class GreedySearch(Search):
 
     def __call__(self, log_probs,output_lens, decode_type="ctc"):
         assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if type == "ctc":
+        if decode_type == "ctc":
             hyps, scores = self.ctc_greedy_search(log_probs, output_lens)
-        elif type == "attention":
+        elif decode_type == "attention":
             # TODO : attention greedy search
             pass
-        elif type == "transducer":
+        elif decode_type == "transducer":
             # TODO : transducer greedy search
             pass
 
@@ -25,7 +25,7 @@ class GreedySearch(Search):
 
     def ctc_greedy_search(self, log_probs: torch.Tensor, encoder_out_lens: torch.Tensor):
         batch_size = log_probs.shape[0]
-        maxlen = self.max_length
+        maxlen = log_probs.shape[1]
 
         # topk_index = log_probs.argmax(-1)
         topk_prob, topk_index = log_probs.topk(1, dim=2)
