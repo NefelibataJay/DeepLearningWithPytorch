@@ -10,7 +10,7 @@ from tool.tokenize.tokenizer import Tokenizer
 from util.initialize import init_search
 
 
-class ConformerCTCTrainer:
+class ConformerTransducerTrainer:
     def __init__(self, config: DictConfig, tokenizer: Tokenizer, model: torch.nn.Module, optimizer: torch.optim,
                  scheduler: torch.optim.lr_scheduler, criterion: torch.nn, metric, device) -> None:
         self.config = config
