@@ -102,7 +102,7 @@ class ConformerCTCTrainer:
             valid_loss += loss.item()
 
             log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths, decode_type="ctc")
+            hyps, _ = self.search(log_probs, input_lengths, _type="ctc")
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []
@@ -136,7 +136,7 @@ class ConformerCTCTrainer:
 
             # compute CER
             log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths, decode_type="ctc")
+            hyps, _ = self.search(log_probs, input_lengths, _type="ctc")
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []

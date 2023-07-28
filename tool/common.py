@@ -110,5 +110,6 @@ if __name__ == "__main__":
                            [4, 5, 6, 0, 0],
                            [7, 8, 9, 0, 0]], dtype=torch.int32)
     print(add_blank(ys_pad, blank, ignore_id=0))
-    rnnt_text = torch.where(ys_pad == 0, -1, ys_pad).to(torch.int32)
-    print(rnnt_text)
+    print(add_sos(ys_pad, sos=1, pad=0))
+    # rnnt_text = torch.where(ys_pad == 0, -1, ys_pad).to(torch.int32)
+    # print(rnnt_text)

@@ -2,22 +2,24 @@ import torch
 
 from tool.common import remove_duplicates_and_blank
 from models.modules.mask import *
-from tool.search.base_search import Search
 
 
-class GreedySearch(Search):
-    def __init__(self, max_length, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
-        super(GreedySearch, self).__init__(max_length=max_length, sos_id=sos_id, eos_id=eos_id, blank_id=blank_id,
-                                           pad_id=pad_id)
+class GreedySearch:
+    def __init__(self, max_length: int = 128, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
+        self.max_length = max_length
+        self.sos_id = sos_id
+        self.eos_id = eos_id
+        self.pad_id = pad_id
+        self.blank_id = blank_id
 
-    def __call__(self, log_probs, output_lens, decode_type="ctc"):
-        assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if decode_type == "ctc":
-            hyps, scores = self.ctc_greedy_search(log_probs, output_lens, self.blank_id)
-        elif decode_type == "attention":
+    def __call__(self, log_probs, output_lens, _type="ctc"):
+        assert _type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
+        if _type == "ctc":
+            hyps, scores = self.ctc_greedy_search(log_probs, output_lens)
+        elif _type == "attention":
             # TODO : attention greedy search
             pass
-        elif decode_type == "transducer":
+        elif _type == "transducer":
             # TODO : transducer greedy search
             pass
 
@@ -59,34 +61,22 @@ class GreedySearch(Search):
 
         return hyps, scores
 
+    def transducer_greedy_search(self, transducer, encoder_outputs, output_lengths):
+        outputs = list()
+        batch_size = encoder_outputs.size(0)
 
-def transducer_greedy_search(transducer_model, encoder_inputs, max_length: int = 128):
-    """
-    transducer_model : Transducer
-    encoder_inputs : (batch_size, max_length, dim)
-    """
-    outputs = list()
-    encoder_outputs, output_lengths = transducer_model.encoder(encoder_inputs)
-    for encoder_output in encoder_outputs:
-        pred_tokens = list()
-        decoder_input = encoder_output.new_zeros(1, 1).fill_(transducer_model.decoder.sos_id).long()
-        decoder_output, hidden_state = transducer_model.decoder(decoder_input)
+        decoder_inputs = encoder_outputs.new_zeros(batch_size, 1).fill_(self.sos_id).long()
+        # first decode input is sos
+        for i in range(self.max_length):
+            decoder_outputs, hidden_states = transducer.predictor(decoder_inputs)
+            # decoder_outputs (batch_size, i, decoder_output_size)
 
-        for t in range(max_length):
-            step_output = transducer_model.joint(encoder_output[t].view(-1), decoder_output.view(-1))
 
-            pred_token = step_output.argmax(dim=0)
-            pred_token = int(pred_token.item())
-            pred_tokens.append(pred_token)
 
-            decoder_input = torch.LongTensor([[pred_token]])
-            if torch.cuda.is_available():
-                decoder_input = decoder_input.cuda()
+        return outputs
 
-            decoder_output, hidden_state = transducer_model.decoder(decoder_input, hidden_states=hidden_state)
-
-        outputs.append(torch.LongTensor(pred_tokens))
-    return torch.stack(outputs, dim=0)
+    def attention_greedy_search(self, encoder_outputs, encoder_output_lengths, decoder):
+        pass
 
 
 def transformer_greedy_search(decoder, encoder_outputs, encoder_output_lengths):

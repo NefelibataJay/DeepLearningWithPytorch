@@ -1,25 +1,28 @@
 import torch
 import torch.nn.functional as F
 
-from tool.search.base_search import Search
 from tool.search.hypotheses import BeamHypotheses
 
 
-class BeamSearch(Search):
+class BeamSearch:
     def __init__(self, length_penalty: int = 0, beam_size: int = 1, max_length: int = 100, sos_id: int = 1,
                  eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
-        super(BeamSearch, self).__init__(beam_size, max_length, sos_id, eos_id, blank_id, pad_id)
-
+        self.beam_size = beam_size
+        self.max_length = max_length
+        self.sos_id = sos_id
+        self.eos_id = eos_id
+        self.pad_id = pad_id
+        self.blank_id = blank_id
         self.length_penalty = length_penalty
 
-    def __call__(self, log_probs, output_lens, decode_type="ctc"):
-        assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if decode_type == "ctc":
+    def __call__(self, log_probs, output_lens, _type="ctc"):
+        assert _type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
+        if _type == "ctc":
             hyps, scores = self.ctc_beam_search(log_probs, output_lens)
-        elif decode_type == "attention":
+        elif _type == "attention":
             # TODO : attention beam search
             pass
-        elif decode_type == "transducer":
+        elif _type == "transducer":
             # TODO : transducer beam search
             pass
 

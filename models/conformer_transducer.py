@@ -5,7 +5,7 @@ from torchaudio.transforms import RNNTLoss
 
 from models.decoder.transducer import TransducerJoint, RnnPredictor
 from models.encoder.conformer_encoder import ConformerEncoder
-from tool.common import add_blank
+from tool.common import add_blank, add_sos
 
 
 class ConformerTransducer(torch.nn.Module):
@@ -63,8 +63,8 @@ class ConformerTransducer(torch.nn.Module):
                 text_lengths: torch.Tensor):
         encoder_outputs, output_lengths = self.encoder(speech, speech_lengths)
 
-        ys_in_pad = add_blank(text, self.blank_id, self.pad_id)
-        #  [B, max_text_len + 1]  <pad> -> <blank>
+        ys_in_pad = add_sos(text, sos=self.sos_id, pad=self.pad_i)
+        #  [B, max_text_len + 1]
 
         predictor_out, hidden_states = self.predictor(ys_in_pad)
 

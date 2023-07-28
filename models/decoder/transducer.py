@@ -16,7 +16,7 @@ class TransducerJoint(nn.Module):
                  enc_output_size: int = 256,
                  pred_output_size: int = 256,
                  joint_dim: int = 512,
-                 joint_type: str = "concat",):
+                 joint_type: str = "add", ):
         super().__init__()
         assert joint_type in ["add", "concat"], "joint_type must be in ['add', 'concat']"
         self.joint_type = joint_type
@@ -41,9 +41,7 @@ class TransducerJoint(nn.Module):
         outputs = None
 
         if self.joint_type == "add":
-            e_outputs = self.lin_enc(encoder_outputs)
-            d_outputs = self.lin_dec(decoder_outputs)
-            outputs = e_outputs + d_outputs
+            outputs = self.activation(self.lin_enc(encoder_outputs) + self.lin_dec(decoder_outputs))
         elif self.joint_type == "concat":
             input_length = encoder_outputs.size(1)
             target_length = decoder_outputs.size(1)
@@ -54,7 +52,7 @@ class TransducerJoint(nn.Module):
             encoder_outputs = encoder_outputs.repeat([1, 1, target_length, 1])
             decoder_outputs = decoder_outputs.repeat([1, input_length, 1, 1])
 
-            outputs = torch.cat((encoder_outputs, decoder_outputs), dim=-1)
+            outputs = self.activation(torch.cat((encoder_outputs, decoder_outputs), dim=-1))
 
         logits = self.fc(outputs).log_softmax(dim=-1)
 
@@ -80,23 +78,24 @@ class RnnPredictor(nn.Module):
         self.n_layers = num_layers
         self.hidden_size = hidden_size
 
-        self.decoder = RNN_TYPE[rnn_type](
-                input_size=embed_size,
-                hidden_size=hidden_size,
-                num_layers=num_layers,
-                batch_first=True,
-                dropout=rnn_dropout,
-            )
+        self.rnn = RNN_TYPE[rnn_type](
+            input_size=embed_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=rnn_dropout,
+        )
 
         self.final_projection = nn.Linear(hidden_size, output_size)
 
-    def forward(self, inputs: Tensor, hidden_states: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, inputs: Tensor, hidden_states=None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward  `inputs` (targets) for training.
-
         Args:
-            inputs : [batch, target_length). labels
-            hidden_states : Previous hidden states.
+            inputs : (batch, target_max_length). labels
+            hidden_states : (batch, hidden_size). hidden states
+        Returns:
+            outputs : (batch, target_max_length, pred_output_size). Decoder outputs.
         """
         embed = self.dropout(self.embed(inputs))
 
