@@ -10,10 +10,10 @@ class GreedySearch(Search):
         super(GreedySearch, self).__init__(max_length=max_length, sos_id=sos_id, eos_id=eos_id, blank_id=blank_id,
                                            pad_id=pad_id)
 
-    def __call__(self, log_probs,output_lens, decode_type="ctc"):
+    def __call__(self, log_probs, output_lens, decode_type="ctc"):
         assert decode_type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
         if decode_type == "ctc":
-            hyps, scores = self.ctc_greedy_search(log_probs, output_lens)
+            hyps, scores = self.ctc_greedy_search(log_probs, output_lens, self.blank_id)
         elif decode_type == "attention":
             # TODO : attention greedy search
             pass
@@ -22,6 +22,20 @@ class GreedySearch(Search):
             pass
 
         return hyps, scores
+
+    def _greedy_search(self, log_probs):
+        """
+        TODO add Batch
+        Given a sequence, get the best path
+            Args:
+                log_probs (Tensor): Logit tensors. Shape `[num_seq, num_label]`.
+            Returns:
+                List[int]: label Token
+        """
+        indices = torch.argmax(log_probs, dim=-1)  # [num_seq,]
+        indices = torch.unique_consecutive(indices, dim=-1)
+        indices = [i for i in indices if i != self.blank_id]
+        return indices
 
     def ctc_greedy_search(self, log_probs: torch.Tensor, encoder_out_lens: torch.Tensor):
         batch_size = log_probs.shape[0]
@@ -40,7 +54,8 @@ class GreedySearch(Search):
 
         scores = topk_prob.max(1)
 
-        hyps = [remove_duplicates_and_blank(hyp) for hyp in hyps]
+        hyps = [i for i in hyps if i != self.blank_id]  # remove blank
+        # hyps = [remove_duplicates_and_blank(hyp, blank_id) for hyp in hyps]
 
         return hyps, scores
 

@@ -2,7 +2,7 @@ from typing import List, Tuple
 import torch
 
 
-def remove_duplicates_and_blank(hyp: List[int], blank=4) -> List[int]:
+def remove_duplicates_and_blank(hyp: List[int], blank: int = 3) -> List[int]:
     new_hyp: List[int] = []
     cur = 0
     while cur < len(hyp):
@@ -14,7 +14,7 @@ def remove_duplicates_and_blank(hyp: List[int], blank=4) -> List[int]:
     return new_hyp
 
 
-def replace_duplicates_with_blank(hyp: List[int], blank=4) -> List[int]:
+def replace_duplicates_with_blank(hyp: List[int], blank: int =3) -> List[int]:
     new_hyp: List[int] = []
     cur = 0
     while cur < len(hyp):
