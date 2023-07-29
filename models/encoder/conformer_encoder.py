@@ -88,18 +88,10 @@ class ConformerBlock(nn.Module):
         residual = x
         x = self.norm_mha(x)
 
-        if cache is None:
-            x_q = x
-        else:
-            assert cache.shape == (x.shape[0], x.shape[1] - 1, self.size)
-            x_q = x[:, -1:, :]
-            residual = residual[:, -1:, :]
-            mask = None if mask is None else mask[:, -1:, :]
-
         if pos_emb is not None:
-            x_att = self.self_attn(x_q, x, x, pos_emb, mask)
+            x_att = self.self_attn(x, x, x, pos_emb, mask)
         else:
-            x_att = self.self_attn(x_q, x, x, mask)
+            x_att = self.self_attn(x, x, x, mask)
         x = residual + self.dropout(x_att)
 
         # convolution
@@ -111,9 +103,6 @@ class ConformerBlock(nn.Module):
         x = x + self.ff_scale * self.f2(x)
 
         x = self.norm_final(x)
-
-        if cache is not None:
-            x = torch.cat([cache, x], dim=1)
 
         if pos_emb is not None:
             return (x, pos_emb), mask
@@ -196,7 +185,10 @@ class ConformerEncoder(nn.Module):
         outputs, output_lengths = self.conv_subsample(inputs, input_lengths)
         outputs, pos_emb = self.pos_encoding(self.input_projection(outputs))
 
-        masks = (~make_pad_mask(output_lengths)[:, None, :]).to(outputs.device)
+        # NOTE: the ture lengths is output_lengths, but output_lengths was negative 1
+        # output_lengths -= 1
+        # so we use input_lengths instead and deal with espnet
+        masks = (~make_pad_mask(input_lengths)[:, None, :])[:, :, :-2:2][:, :, :-2:2].to(outputs.device)
         outputs = (outputs, pos_emb)
 
         for layer in self.layers:

@@ -5,12 +5,17 @@ from models.modules.mask import *
 
 
 class GreedySearch:
-    def __init__(self, max_length: int = 128, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
+    def __init__(self,decode_type: str, max_length: int = 128, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
         self.max_length = max_length
         self.sos_id = sos_id
         self.eos_id = eos_id
         self.pad_id = pad_id
         self.blank_id = blank_id
+        self.model_type = decode_type
+
+    def __call__(self, model, inputs, input_lengths):
+        if self.model_type == "ctc":
+            return self.ctc_greedy_search(inputs, input_lengths)
 
     def _greedy_search(self, log_probs):
         """
@@ -26,18 +31,16 @@ class GreedySearch:
         indices = [i for i in indices if i != self.blank_id]
         return indices
 
-    def ctc_greedy_search(self, ctc_model, speech, speech_lengths):
+    def ctc_greedy_search(self, logits, encoder_out_lens):
         """ implement ctc greedy search from wenet """
-        encoder_out, encoder_out_lens = ctc_model.encoder(speech, speech_lengths)
-        logits = ctc_model.fc(encoder_out).log_softmax(dim=-1)
-
+        logits = logits.log_softmax(dim=-1)
         batch_size = logits.shape[0]
         max_len = logits.shape[1]
         ctc_probs = logits.log_softmax(dim=2)
         # topk_index = log_probs.argmax(2)
         topk_prob, topk_index = ctc_probs.topk(1, dim=2)  # (B, max_len, 1)
         topk_index = topk_index.view(batch_size, max_len)  # (B, max_len)
-        mask = make_pad_mask(encoder_out_lens, max_len)  # (B, max_len)
+        mask = make_pad_mask(encoder_out_lens, maxlen=max_len)  # (B, max_len)
         topk_index = topk_index.masked_fill_(mask, self.eos_id)  # (B, max_len)
         hyps = [hyp.tolist() for hyp in topk_index]
         scores = topk_prob.max(1)

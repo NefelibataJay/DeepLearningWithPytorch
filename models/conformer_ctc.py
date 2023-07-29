@@ -42,7 +42,7 @@ class ConformerCTC(torch.nn.Module):
         encoder_outputs, output_lengths = self.encoder(inputs, input_lengths)
         logits = self.fc(encoder_outputs)
 
-        loss = self.ctc_criterion(logits,output_lengths, targets, target_lengths)
+        loss = self.ctc_criterion(logits, output_lengths, targets, target_lengths)
         result["loss"] = loss
         result["logits"] = logits
         result["output_lengths"] = output_lengths

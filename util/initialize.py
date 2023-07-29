@@ -22,15 +22,14 @@ def init_config(config, stage='train'):
     model = init_model(config)
     optimizer = init_optimizer(model, config)
     scheduler = init_scheduler(optimizer, config)
-    criterion = init_criterion(config)
     metric = init_metric(config)
 
     if stage == 'train':
         train_dataloader, valid_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, optimizer, scheduler, criterion, metric, train_dataloader, valid_dataloader,
+        return model, tokenizer, optimizer, scheduler, metric, train_dataloader, valid_dataloader,
     else:
         test_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, optimizer, scheduler, criterion, metric, test_dataloader
+        return model, tokenizer, optimizer, scheduler, metric, test_dataloader
 
 
 def init_seed(seed: int = 42):
@@ -83,11 +82,6 @@ def init_scheduler(optimizer, config):
     else:
         lr_scheduler = REGISTER_SCHEDULER[config.scheduler_name](optimizer, **config.lr_scheduler)
     return lr_scheduler
-
-
-def init_criterion(config):
-    criterion = REGISTER_LOSS[config.loss_name](**config.loss)
-    return criterion
 
 
 def init_metric(config):

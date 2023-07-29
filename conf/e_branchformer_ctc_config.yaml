@@ -91,6 +91,7 @@ metric:
   reduction: mean
 
 search:
+  decode_type: ctc
   max_length : 100
   sos_id : ${tokenizer.sos_id}
   eos_id : ${tokenizer.eos_id}
