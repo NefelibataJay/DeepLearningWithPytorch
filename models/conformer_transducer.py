@@ -6,6 +6,7 @@ from torchaudio.transforms import RNNTLoss
 from models.decoder.transducer import TransducerJoint, RnnPredictor
 from models.encoder.conformer_encoder import ConformerEncoder
 from tool.common import add_blank, add_sos
+from tool.loss import CTC
 
 
 class ConformerTransducer(torch.nn.Module):
@@ -63,12 +64,13 @@ class ConformerTransducer(torch.nn.Module):
 
         if self.ctc_weight > 0:
             self.ctc_fc = torch.nn.Linear(self.encoder_configs.encoder_dim, self.num_classes, bias=False)
-            self.ctc_criterion = torch.nn.CTCLoss(blank=self.blank_id, reduction="mean")
+            self.ctc_criterion = CTC(blank_id=self.blank_id, reduction="mean")
 
         self.criterion = RNNTLoss(blank=self.blank_id, reduction="mean")
 
     def forward(self, speech: torch.Tensor, speech_lengths: torch.Tensor, text: torch.Tensor,
                 text_lengths: torch.Tensor):
+        result = dict()
         encoder_outputs, output_lengths = self.encoder(speech, speech_lengths)
 
         ys_in_pad = add_sos(text, sos=self.sos_id, pad=self.pad_i)
@@ -85,6 +87,10 @@ class ConformerTransducer(torch.nn.Module):
 
         transducer_loss = self.criterion(joint_out, rnnt_text, output_lengths, rnnt_text_lengths)
 
+        result["transducer_loss"] = transducer_loss
+        result["encoder_outputs"] = encoder_outputs
+        result["output_lengths"] = output_lengths
+
         if self.ctc_weight > 0:
             logits = self.ctc_fc(encoder_outputs)
             ctc_loss = self.ctc_criterion(hs_pad=logits,
@@ -93,6 +99,9 @@ class ConformerTransducer(torch.nn.Module):
                                           ys_lens=text_lengths, )
             ctc_loss = ctc_loss * self.ctc_weight
             loss = transducer_loss * self.transducer_weight + ctc_loss
-
+            result["ctc_loss"] = ctc_loss
+            result["loss"] = loss
             return loss, transducer_loss, ctc_loss
+
+        result["loss"] = transducer_loss
         return transducer_loss

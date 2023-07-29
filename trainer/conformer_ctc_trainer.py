@@ -46,14 +46,9 @@ class ConformerCTCTrainer:
                 input_lengths = input_lengths.to(self.device)
                 target_lengths = target_lengths.to(self.device)
 
-                encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
+                result = self.model(inputs, input_lengths, targets, target_lengths)
 
-                loss = self.criterion(
-                    hs_pad=logits,
-                    ys_pad=targets,
-                    h_lens=output_lengths,
-                    ys_lens=target_lengths,
-                )
+                loss = result["loss"]
 
                 loss /= self.accum_grad
                 loss.backward()
@@ -92,17 +87,13 @@ class ConformerCTCTrainer:
             targets = targets.to(self.device)
             input_lengths = input_lengths.to(self.device)
             target_lengths = target_lengths.to(self.device)
-            encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
-            loss = self.criterion(
-                hs_pad=logits,
-                ys_pad=targets,
-                h_lens=output_lengths,
-                ys_lens=target_lengths,
-            )
+            result = self.model(inputs, input_lengths)
+            loss = result["loss"]
+
             valid_loss += loss.item()
 
-            log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths, _type="ctc")
+            hyps, _ = self.search(self.model, inputs, input_lengths)
+
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []
@@ -129,14 +120,12 @@ class ConformerCTCTrainer:
         for idx, batch in bar:
             inputs, input_lengths, targets, target_lengths = batch
             inputs = inputs.to(self.device)
-            targets = targets.to(self.device)
             input_lengths = input_lengths.to(self.device)
+            targets = targets.to(self.device)
             target_lengths = target_lengths.to(self.device)
-            encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
 
-            # compute CER
-            log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths, _type="ctc")
+            hyps, _ = self.search(self.model, inputs, input_lengths)
+
             predictions = [self.tokenizer.int2text(sent) for sent in hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
             list_cer = []
@@ -144,10 +133,11 @@ class ConformerCTCTrainer:
                 list_cer.append(self.metric(i, j))
             char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
             test_acc += char_error_rate
-            bar.set_postfix(acc='{:.4f}'.format(char_error_rate))
+            bar.set_postfix(acc='{:.4f}'.format(test_acc))
+
         test_acc /= len(test_dataloader)
-        self.logger.add_scalar("valid_acc", test_acc)
-        print("valid_acc:", test_acc)
+        self.logger.add_scalar("test_acc", test_acc)
+        print("test_acc:", test_acc)
 
     def save_model(self, epoch):
         if not os.path.exists(self.config.save_path):
