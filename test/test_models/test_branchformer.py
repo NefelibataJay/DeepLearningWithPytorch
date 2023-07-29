@@ -1,6 +1,6 @@
 import torch
 
-from models.encoder.branchformer_encoder import BranchformerEncoder
+from models.encoder.e_branchformer_encoder import EBranchformerEncoder
 
 
 def test_branchformer():
@@ -9,6 +9,6 @@ def test_branchformer():
     input_dim = 80
     inputs = torch.randint(low=0,high=50,size=(batch_size, 80, 150)).transpose(1, 2).to(torch.float32)
 
-    branchformer = BranchformerEncoder(input_dim=input_dim, encoder_dim=128, num_layers=2)
+    branchformer = EBranchformerEncoder(input_dim=input_dim, encoder_dim=128, num_layers=2)
     print(branchformer)
     outputs, outputs_lengths = branchformer(inputs, inputs_length)

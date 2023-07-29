@@ -21,40 +21,44 @@ class TransducerJoint(nn.Module):
         assert joint_type in ["add", "concat"], "joint_type must be in ['add', 'concat']"
         self.joint_type = joint_type
 
-        if joint_type == "add":
-            self.lin_enc = torch.nn.Linear(enc_output_size, joint_dim)
-            self.lin_dec = torch.nn.Linear(pred_output_size, joint_dim, bias=False)
-        elif joint_type == "concat":
-            self.f1 = nn.Linear(enc_output_size + pred_output_size, self.joint_dim)
+        self.lin_enc = torch.nn.Linear(enc_output_size, joint_dim)
+        self.lin_dec = torch.nn.Linear(pred_output_size, joint_dim)
+
+        if joint_type == "concat":
+            self.f1 = nn.Linear(enc_output_size + pred_output_size, joint_dim)
 
         self.activation = nn.Tanh()  # TODO : support other activation function
-        self.out_pro = nn.Linear(self.joint_dim, vocab_size)
+        self.out_pro = nn.Linear(joint_dim, vocab_size)
 
-    def forward(self, encoder_outputs: Tensor, decoder_outputs: Tensor):
+    def forward(self, encoder_outputs: Tensor, predictor_outputs: Tensor):
         """
         Args:
             encoder_outputs (torch.Tensor): [B, input_length, encoder_output_size]
-            decoder_outputs (torch.Tensor): [B, target_length, pred_output_size]
+            predictor_outputs (torch.Tensor): [B, target_length, pred_output_size]
         Return:
             [B,input_length,target_length,joint_dim]
         """
         outputs = None
 
+        input_length = encoder_outputs.size(1)
+        target_length = predictor_outputs.size(1)
+
+        enc_out = self.lin_enc(encoder_outputs)
+        pred_out = self.lin_dec(predictor_outputs)
+        enc_out = enc_out.unsqueeze(2)  # [B, input_length, 1, joint_dim]
+        pred_out = pred_out.unsqueeze(1)  # [B, 1, target_length, joint_dim]
+
         if self.joint_type == "add":
-            outputs = self.activation(self.lin_enc(encoder_outputs) + self.lin_dec(decoder_outputs))
+            outputs = enc_out + pred_out  # [B,input_length,target_length,joint_dim]
+
         elif self.joint_type == "concat":
-            input_length = encoder_outputs.size(1)
-            target_length = decoder_outputs.size(1)
-
-            encoder_outputs = encoder_outputs.unsqueeze(2)
-            decoder_outputs = decoder_outputs.unsqueeze(1)
-
             encoder_outputs = encoder_outputs.repeat([1, 1, target_length, 1])
-            decoder_outputs = decoder_outputs.repeat([1, input_length, 1, 1])
+            pred_out = pred_out.repeat([1, input_length, 1, 1])
 
-            outputs = self.activation(torch.cat((encoder_outputs, decoder_outputs), dim=-1))
+            outputs = torch.cat((encoder_outputs, pred_out), dim=-1)
+            outputs = self.f1(outputs)
 
-        logits = self.fc(outputs).log_softmax(dim=-1)
+        logits = self.out_pro(self.activation(outputs))
 
         return logits
 

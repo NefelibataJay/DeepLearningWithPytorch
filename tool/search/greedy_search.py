@@ -39,41 +39,80 @@ class GreedySearch:
         indices = [i for i in indices if i != self.blank_id]
         return indices
 
-    def ctc_greedy_search(self, log_probs: torch.Tensor, encoder_out_lens: torch.Tensor):
-        batch_size = log_probs.shape[0]
-        maxlen = log_probs.shape[1]
-
-        # topk_index = log_probs.argmax(-1)
-        topk_prob, topk_index = log_probs.topk(1, dim=2)
-
-        topk_index = topk_index.view(batch_size, maxlen)  # (B, maxlen)
-
-        mask = make_pad_mask(encoder_out_lens, maxlen)  # (B, maxlen)
-
-        topk_index = topk_index.masked_fill_(mask, self.eos_id)  # (B, maxlen)
-
+    def ctc_greedy_search(self, encoder_out: torch.Tensor, encoder_out_lens: torch.Tensor):
+        """ implement ctc greedy search from wenet """
+        batch_size = encoder_out.shape[0]
+        max_len = encoder_out.shape[1]
+        ctc_probs = encoder_out.log_softmax(dim=2)
+        # topk_index = log_probs.argmax(2)
+        topk_prob, topk_index = ctc_probs.topk(1, dim=2)  # (B, max_len, 1)
+        topk_index = topk_index.view(batch_size, max_len)  # (B, max_len)
+        mask = make_pad_mask(encoder_out_lens, max_len)  # (B, max_len)
+        topk_index = topk_index.masked_fill_(mask, self.eos_id)  # (B, max_len)
         hyps = [hyp.tolist() for hyp in topk_index]
-
         scores = topk_prob.max(1)
-
-        hyps = [i for i in hyps if i != self.blank_id]  # remove blank
-        # hyps = [remove_duplicates_and_blank(hyp, blank_id) for hyp in hyps]
-
+        hyps = [remove_duplicates_and_blank(hyp, self.blank_id) for hyp in hyps]
         return hyps, scores
 
-    def transducer_greedy_search(self, transducer, encoder_outputs, output_lengths):
-        outputs = list()
-        batch_size = encoder_outputs.size(0)
-
-        decoder_inputs = encoder_outputs.new_zeros(batch_size, 1).fill_(self.sos_id).long()
+    def rnnt_single_greedy_search(self, transducer, encoder_output, output_length, n_steps: int = 64):
+        """
+        Note: only support batch_size = 1
+            对encoder 的每个时间步进行解码，直到遇到blank时代表这句话**可能**解码完成
+        Args:
+            transducer : Transducer Model
+            encoder_output : (batch_size, input_length, encoder_output_size)
+            output_length : (batch_size, )
+        """
+        # NOTE only support batch_size = 1
+        hyps = list()
+        batch_size = encoder_output.size(0)  # must be 1
+        pred_input_step = encoder_output.new_zeros(batch_size, 1).fill_(self.sos_id).long()  # [[sos_id]]
         # first decode input is sos
-        for i in range(self.max_length):
-            decoder_outputs, hidden_states = transducer.predictor(decoder_inputs)
-            # decoder_outputs (batch_size, i, decoder_output_size)
+        t = 0
+        prev_out_nblk = True
+        pred_out_step = None
+        per_frame_max_noblk = 64
+        per_frame_noblk = 0
+        while t < output_length:
+            encoder_out_step = encoder_output[:, t:t + 1, :]
+            if prev_out_nblk:
+                pred_out_step, hidden_states = transducer.predictor(pred_input_step)
+                # decoder_outputs (batch_size, 1, decoder_output_size)
 
+            joint_out_step = transducer.joint(encoder_out_step, pred_out_step)
+            joint_out_probs = joint_out_step.log_softmax(dim=-1)
 
+            joint_out_max = joint_out_probs.argmax(dim=-1).squeeze()
 
-        return outputs
+            if joint_out_max != self.blank_id:
+                # decoding not blank , add to hyps
+                hyps.append(joint_out_max.item())
+                prev_out_nblk = True
+
+                # 对于RNN而言，当前的时间步解码出的不是blank，那么下一个时间步的输入就是当前时间步的输出
+                # 根据当前时间步的结果继续解码
+                per_frame_noblk = per_frame_noblk + 1
+                pred_input_step = joint_out_max.reshape(1, 1)
+            if joint_out_max == self.blank_id or per_frame_noblk >= per_frame_max_noblk:
+                if joint_out_max == self.blank_id:
+                    # 解码出blank，说明这句话可能解码完成
+                    prev_out_nblk = False
+                # next time step
+                t = t + 1
+                per_frame_noblk = 0
+        return hyps
+
+    def rnnt_greedy_search(self, transducer, encoder_outputs, output_lengths):
+        """TODO add Batch
+        思路: 上面的单条解码
+
+        Args:
+            transducer : Transducer Model
+            encoder_output : (batch_size, input_length, encoder_output_size)
+            output_length : (batch_size, )
+        """
+        hyps = list()
+        pass
 
     def attention_greedy_search(self, encoder_outputs, encoder_output_lengths, decoder):
         pass
@@ -106,10 +145,8 @@ def transformer_greedy_search(decoder, encoder_outputs, encoder_output_lengths):
         # topk_index is token_id
         new_token_id = topk_index[:, -1, :]
         input_var = torch.cat([input_var, new_token_id], dim=1)
-
         if torch.all(new_token_id < eos + 1):
             break
-
     return input_var
 
 

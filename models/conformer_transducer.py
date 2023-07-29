@@ -13,6 +13,10 @@ class ConformerTransducer(torch.nn.Module):
         super(ConformerTransducer, self).__init__()
         self.configs = configs
 
+        if self.configs.weight_conf is not None:
+            self.transducer_weight = self.configs.weight_conf.transducer_weight
+            self.ctc_weight = self.configs.weight_conf.ctc_weight
+
         self.encoder_configs = self.configs.model.encoder
         self.num_classes = self.configs.model.num_classes
         self.sos_id = self.configs.tokenizer.sos_id
@@ -57,6 +61,10 @@ class ConformerTransducer(torch.nn.Module):
             pad=self.pad_id,
         )
 
+        if self.ctc_weight > 0:
+            self.ctc_fc = torch.nn.Linear(self.encoder_configs.encoder_dim, self.num_classes, bias=False)
+            self.ctc_criterion = torch.nn.CTCLoss(blank=self.blank_id, reduction="mean")
+
         self.criterion = RNNTLoss(blank=self.blank_id, reduction="mean")
 
     def forward(self, speech: torch.Tensor, speech_lengths: torch.Tensor, text: torch.Tensor,
@@ -68,19 +76,23 @@ class ConformerTransducer(torch.nn.Module):
 
         predictor_out, hidden_states = self.predictor(ys_in_pad)
 
-        joint_out = self.joint(encoder_outputs, predictor_out)
+        joint_out = self.joint(encoder_outputs, predictor_out)  # [B, input_length, target_length, joint_dim]
 
-        rnnt_text = text.to(torch.int32)
+        rnnt_text = torch.where(text == self.pad_id, self.blank_id, text).to(torch.int32)
+        rnnt_text = rnnt_text.to(torch.int32)
         rnnt_text_lengths = text_lengths.to(torch.int32)
         output_lengths = output_lengths.to(torch.int32)
-        loss = torchaudio.functional.rnnt_loss(joint_out,
-                                               rnnt_text,
-                                               output_lengths,
-                                               rnnt_text_lengths,
-                                               blank=self.blank_id,
-                                               reduction="mean")
-        return loss
 
-    @torch.no_grad()
-    def recognize(self):
-        pass
+        transducer_loss = self.criterion(joint_out, rnnt_text, output_lengths, rnnt_text_lengths)
+
+        if self.ctc_weight > 0:
+            logits = self.ctc_fc(encoder_outputs)
+            ctc_loss = self.ctc_criterion(hs_pad=logits,
+                                          ys_pad=text,
+                                          h_lens=output_lengths,
+                                          ys_lens=text_lengths, )
+            ctc_loss = ctc_loss * self.ctc_weight
+            loss = transducer_loss * self.transducer_weight + ctc_loss
+
+            return loss, transducer_loss, ctc_loss
+        return transducer_loss

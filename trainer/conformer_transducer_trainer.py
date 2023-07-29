@@ -18,7 +18,6 @@ class ConformerTransducerTrainer:
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.criterion = criterion
         self.metric = metric
         self.device = device
         self.accum_grad = self.config.train_conf.accum_grad
@@ -42,10 +41,7 @@ class ConformerTransducerTrainer:
                 input_lengths = input_lengths.to(self.device)
                 target_lengths = target_lengths.to(self.device)
 
-                # TODO
-
-                loss /= self.accum_grad
-                loss.backward()
+                loss = None
 
                 if (idx + 1) % self.accum_grad == 0 or (idx + 1) == len(train_dataloader):
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.grad_clip, norm_type=2)
@@ -80,61 +76,6 @@ class ConformerTransducerTrainer:
             targets = targets.to(self.device)
             input_lengths = input_lengths.to(self.device)
             target_lengths = target_lengths.to(self.device)
-            encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
-            loss = self.criterion(
-                hs_pad=logits,
-                ys_pad=targets,
-                h_lens=output_lengths,
-                ys_lens=target_lengths,
-            )
-            valid_loss += loss.item()
-
-            log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths)
-            predictions = [self.tokenizer.int2text(sent) for sent in hyps]
-            targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
-            list_cer = []
-            for i, j in zip(predictions, targets):
-                list_cer.append(self.metric(i,j))
-            char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
-            valid_acc += char_error_rate
-            bar.set_postfix(loss='{:.4f}'.format(loss.item()))
-
-        valid_loss /= len(valid_dataloader)
-        valid_acc /= len(valid_dataloader)
-
-        self.logger.add_scalar("valid_loss", valid_loss, epoch)
-        self.logger.add_scalar("valid_acc", valid_acc, epoch)
-        print("valid_loss:", valid_loss, "valid_acc:", valid_acc)
-
-    @torch.no_grad()
-    def test(self, test_dataloader):
-        self.model.eval()
-        print("=========================Test=========================")
-        test_acc = 0
-        bar = tqdm(enumerate(test_dataloader), desc=f"Test")
-        for idx, batch in bar:
-            inputs, input_lengths, targets, target_lengths = batch
-            inputs = inputs.to(self.device)
-            targets = targets.to(self.device)
-            input_lengths = input_lengths.to(self.device)
-            target_lengths = target_lengths.to(self.device)
-            encoder_outputs, output_lengths, logits = self.model(inputs, input_lengths)
-
-            # compute CER
-            log_probs = logits.log_softmax(dim=-1)
-            hyps, _ = self.search(log_probs, input_lengths)
-            predictions = [self.tokenizer.int2text(sent) for sent in hyps]
-            targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
-            list_cer = []
-            for i, j in zip(predictions, targets):
-                list_cer.append(self.metric(i, j))
-            char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
-            test_acc += char_error_rate
-            bar.set_postfix(acc='{:.4f}'.format(char_error_rate))
-        test_acc /= len(test_dataloader)
-        self.logger.add_scalar("valid_acc", test_acc)
-        print("valid_acc:", test_acc)
 
     def save_model(self, epoch):
         if not os.path.exists(self.config.save_path):

@@ -2,11 +2,11 @@ from typing import List, Tuple
 import torch
 
 
-def remove_duplicates_and_blank(hyp: List[int], blank: int = 3) -> List[int]:
+def remove_duplicates_and_blank(hyp: List[int], blank_id: int = 3) -> List[int]:
     new_hyp: List[int] = []
     cur = 0
     while cur < len(hyp):
-        if hyp[cur] != blank:
+        if hyp[cur] != blank_id:
             new_hyp.append(hyp[cur])
         prev = cur
         while cur < len(hyp) and hyp[cur] == hyp[prev]:
@@ -109,7 +109,10 @@ if __name__ == "__main__":
     ys_pad = torch.tensor([[1, 2, 3, 4, 5],
                            [4, 5, 6, 0, 0],
                            [7, 8, 9, 0, 0]], dtype=torch.int32)
-    print(add_blank(ys_pad, blank, ignore_id=0))
-    print(add_sos(ys_pad, sos=1, pad=0))
-    # rnnt_text = torch.where(ys_pad == 0, -1, ys_pad).to(torch.int32)
-    # print(rnnt_text)
+    blank_y = add_blank(ys_pad, blank, ignore_id=0)
+    print(blank_y)
+    sos_y = add_sos(blank_y, sos=1, pad=0)
+    print(sos_y)
+
+    rnnt_text = torch.where(ys_pad == 0, 3, ys_pad).to(torch.int32)
+    print(rnnt_text)
