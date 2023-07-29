@@ -420,6 +420,8 @@ class RelPositionMultiHeadedAttention(MultiHeadedAttention):
         # compute matrix b and matrix d
         # (batch, head, time1, 2*time1-1)
         matrix_bd = torch.matmul(q_with_bias_v, p.transpose(-2, -1))
+
+        # NOTE: Remove rel_shift since it is useless in speech recognition,
         matrix_bd = self.rel_shift(matrix_bd)
 
         scores = (matrix_ac + matrix_bd) / math.sqrt(

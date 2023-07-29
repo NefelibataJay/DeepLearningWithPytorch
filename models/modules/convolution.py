@@ -105,49 +105,72 @@ class PointwiseConv1d(nn.Module):
         return self.conv(inputs)
 
 
-class ConformerConvModule(nn.Module):
-    """
-    Conformer convolution module starts with a pointwise convolution and a gated linear unit (GLU).
-    This is followed by a single 1-D depthwise convolution layer. Batchnorm is  deployed just after the convolution
-    to aid training deep models.
+class ConvolutionModule(nn.Module):
+    """ConvolutionModule in Conformer model.
 
     Args:
-        in_channels (int): Number of channels in the input
-        kernel_size (int or tuple, optional): Size of the convolving kernel Default: 31
-        dropout_p (float, optional): probability of dropout
+        channels (int): The number of channels of conv layers.
+        kernel_size (int): Kernerl size of conv layers.
 
-    Inputs: inputs
-        inputs (batch, time, dim): Tensor contains input sequences
-
-    Outputs: outputs
-        outputs (batch, time, dim): Tensor produces by conformer convolution module.
     """
 
-    def __init__(
-            self,
-            in_channels: int,
-            kernel_size: int = 31,
-            expansion_factor: int = 2,
-            dropout_p: float = 0.1,
-    ) -> None:
-        super(ConformerConvModule, self).__init__()
-        assert (kernel_size - 1) % 2 == 0, "kernel_size should be a odd number for 'SAME' padding"
-        assert expansion_factor == 2, "Currently, Only Supports expansion_factor 2"
+    def __init__(self, channels, kernel_size, activation=nn.ReLU(), bias=True):
+        """Construct an ConvolutionModule object."""
+        super(ConvolutionModule, self).__init__()
+        # kernerl_size should be a odd number for 'SAME' padding
+        assert (kernel_size - 1) % 2 == 0
 
-        self.sequential = nn.Sequential(
-            nn.LayerNorm(in_channels, eps=1e-5),
-            Transpose(shape=(1, 2)),
-            PointwiseConv1d(in_channels, in_channels * expansion_factor, stride=1, padding=0, bias=True),
-            nn.GLU(dim=1),
-            DepthwiseConv1d(in_channels, in_channels, kernel_size, stride=1, padding=(kernel_size - 1) // 2),
-            nn.BatchNorm1d(in_channels),
-            nn.SiLU(),
-            PointwiseConv1d(in_channels, in_channels, stride=1, padding=0, bias=True),
-            nn.Dropout(p=dropout_p),
+        self.pointwise_conv1 = nn.Conv1d(
+            channels,
+            2 * channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=bias,
         )
+        self.depthwise_conv = nn.Conv1d(
+            channels,
+            channels,
+            kernel_size,
+            stride=1,
+            padding=(kernel_size - 1) // 2,
+            groups=channels,
+            bias=bias,
+        )
+        self.norm = nn.BatchNorm1d(channels)
+        self.pointwise_conv2 = nn.Conv1d(
+            channels,
+            channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=bias,
+        )
+        self.activation = activation
 
-    def forward(self, inputs: Tensor) -> Tensor:
-        return self.sequential(inputs).transpose(1, 2)
+    def forward(self, x):
+        """Compute convolution module.
+
+        Args:
+            x (torch.Tensor): Input tensor (#batch, time, channels).
+
+        Returns:
+            torch.Tensor: Output tensor (#batch, time, channels).
+
+        """
+        # exchange the temporal dimension and the feature dimension
+        x = x.transpose(1, 2)
+
+        # GLU mechanism
+        x = self.pointwise_conv1(x)  # (batch, 2*channel, dim)
+        x = nn.functional.glu(x, dim=1)  # (batch, channel, dim)
+
+        # 1D Depthwise Conv
+        x = self.depthwise_conv(x)
+        x = self.activation(self.norm(x))
+
+        x = self.pointwise_conv2(x)
+        return x.transpose(1, 2)
 
 
 class Conv2dSubsampling(nn.Module):

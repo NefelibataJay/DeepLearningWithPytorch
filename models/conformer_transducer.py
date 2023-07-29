@@ -31,11 +31,10 @@ class ConformerTransducer(torch.nn.Module):
             num_layers=self.encoder_configs.num_encoder_layers,
             num_attention_heads=self.encoder_configs.num_attention_heads,
             feed_forward_expansion_factor=self.encoder_configs.feed_forward_expansion_factor,
-            conv_expansion_factor=self.encoder_configs.conv_expansion_factor,
             input_dropout_p=self.encoder_configs.input_dropout_p,
             feed_forward_dropout_p=self.encoder_configs.feed_forward_dropout_p,
             attention_dropout_p=self.encoder_configs.attention_dropout_p,
-            conv_dropout_p=self.encoder_configs.conv_dropout_p,
+            dropout_p=self.encoder_configs.dropout_p,
             conv_kernel_size=self.encoder_configs.conv_kernel_size,
             half_step_residual=self.encoder_configs.half_step_residual,
         )

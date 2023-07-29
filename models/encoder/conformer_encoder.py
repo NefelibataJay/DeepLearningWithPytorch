@@ -17,12 +17,13 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Tuple
 
+from models.modules.embedding import RelPositionalEncoding
 from models.modules.feed_forward import FeedForwardModule
-from models.modules.attention import ConformerAttentionModule
+from models.modules.attention import ConformerAttentionModule, RelPositionMultiHeadedAttention
 from models.modules.convolution import (
-    ConformerConvModule,
-    Conv2dSubsampling,
+    Conv2dSubsampling, ConvolutionModule,
 )
+from models.modules.mask import make_pad_mask
 from models.modules.modules import (
     ResidualConnectionModule,
     Linear,
@@ -30,85 +31,93 @@ from models.modules.modules import (
 
 
 class ConformerBlock(nn.Module):
-    """
-    Conformer block contains two Feed Forward modules sandwiching the Multi-Headed Self-Attention module
-    and the Convolution module. This sandwich structure is inspired by Macaron-Net, which proposes replacing
-    the original feed-forward layer in the Transformer block into two half-step feed-forward layers,
-    one before the attention layer and one after.
-
-    Args:
-        encoder_dim (int, optional): Dimension of conformer encoder
-        num_attention_heads (int, optional): Number of attention heads
-        feed_forward_expansion_factor (int, optional): Expansion factor of feed forward module
-        conv_expansion_factor (int, optional): Expansion factor of conformer convolution module
-        feed_forward_dropout_p (float, optional): Probability of feed forward module dropout
-        attention_dropout_p (float, optional): Probability of attention module dropout
-        conv_dropout_p (float, optional): Probability of conformer convolution module dropout
-        conv_kernel_size (int or tuple, optional): Size of the convolving kernel
-        half_step_residual (bool): Flag indication whether to use half step residual or not
-
-    Inputs: inputs
-        - **inputs** (batch, time, dim): Tensor containing input vector
-
-    Returns: outputs
-        - **outputs** (batch, time, dim): Tensor produces by conformer block.
-    """
-
     def __init__(
             self,
             encoder_dim: int = 256,
             num_attention_heads: int = 4,
             feed_forward_expansion_factor: int = 4,
-            conv_expansion_factor: int = 2,
             feed_forward_dropout_p: float = 0.1,
             attention_dropout_p: float = 0.1,
-            conv_dropout_p: float = 0.1,
+            dropout_p: float = 0.1,
             conv_kernel_size: int = 31,
             half_step_residual: bool = True,
     ):
         super(ConformerBlock, self).__init__()
         if half_step_residual:
-            self.feed_forward_residual_factor = 0.5
+            self.ff_scale = 0.5
         else:
-            self.feed_forward_residual_factor = 1
+            self.ff_scale = 1
+        self.dropout = nn.Dropout(dropout_p)
 
-        self.sequential = nn.Sequential(
-            ResidualConnectionModule(
-                module=FeedForwardModule(
-                    encoder_dim=encoder_dim,
-                    expansion_factor=feed_forward_expansion_factor,
-                    dropout_p=feed_forward_dropout_p,
-                ),
-                module_factor=self.feed_forward_residual_factor,
-            ),
-            ResidualConnectionModule(
-                module=ConformerAttentionModule(
-                    d_model=encoder_dim,
-                    num_heads=num_attention_heads,
-                    dropout_p=attention_dropout_p,
-                ),
-            ),
-            ResidualConnectionModule(
-                module=ConformerConvModule(
-                    in_channels=encoder_dim,
-                    kernel_size=conv_kernel_size,
-                    expansion_factor=conv_expansion_factor,
-                    dropout_p=conv_dropout_p,
-                ),
-            ),
-            ResidualConnectionModule(
-                module=FeedForwardModule(
-                    encoder_dim=encoder_dim,
-                    expansion_factor=feed_forward_expansion_factor,
-                    dropout_p=feed_forward_dropout_p,
-                ),
-                module_factor=self.feed_forward_residual_factor,
-            ),
-            nn.LayerNorm(encoder_dim, eps=1e-5),
+        self.f1 = FeedForwardModule(
+            encoder_dim=encoder_dim,
+            expansion_factor=feed_forward_expansion_factor,
+            dropout_p=feed_forward_dropout_p,
         )
+        self.norm_mha = nn.LayerNorm(encoder_dim)
+        self.self_attn = RelPositionMultiHeadedAttention(num_attention_heads, encoder_dim, attention_dropout_p)
 
-    def forward(self, inputs: Tensor) -> Tensor:
-        return self.sequential(inputs)
+        self.norm_conv = nn.LayerNorm(encoder_dim)
+        self.conv = ConvolutionModule(encoder_dim, conv_kernel_size)
+
+        self.f2 = FeedForwardModule(
+            encoder_dim=encoder_dim,
+            expansion_factor=feed_forward_expansion_factor,
+            dropout_p=feed_forward_dropout_p,
+        )
+        self.norm_final = nn.LayerNorm(encoder_dim)
+
+    def forward(self, x_input, mask, cache=None):
+        """
+            Inputs: inputs
+                - **inputs** (batch, time, dim): Tensor containing input vector
+                - mask (batch, 1, time)
+
+            Returns: outputs
+                - **outputs** (batch, time, dim): Tensor produces by conformer block.
+            """
+        if isinstance(x_input, tuple):
+            x, pos_emb = x_input[0], x_input[1]
+        else:
+            x, pos_emb = x_input, None
+
+        # first feed forward
+        x = x + self.ff_scale * self.f1(x)
+
+        # attention
+        residual = x
+        x = self.norm_mha(x)
+
+        if cache is None:
+            x_q = x
+        else:
+            assert cache.shape == (x.shape[0], x.shape[1] - 1, self.size)
+            x_q = x[:, -1:, :]
+            residual = residual[:, -1:, :]
+            mask = None if mask is None else mask[:, -1:, :]
+
+        if pos_emb is not None:
+            x_att = self.self_attn(x_q, x, x, pos_emb, mask)
+        else:
+            x_att = self.self_attn(x_q, x, x, mask)
+        x = residual + self.dropout(x_att)
+
+        # convolution
+        residual = x
+        x = self.norm_conv(x)
+        x = residual + self.dropout(self.conv_module(x))
+
+        # last feed forward
+        x = x + self.ff_scale * self.f2(x)
+
+        x = self.norm_final(x)
+
+        if cache is not None:
+            x = torch.cat([cache, x], dim=1)
+
+        if pos_emb is not None:
+            return (x, pos_emb), mask
+        return x, mask
 
 
 class ConformerEncoder(nn.Module):
@@ -122,11 +131,10 @@ class ConformerEncoder(nn.Module):
         num_layers (int, optional): Number of conformer blocks
         num_attention_heads (int, optional): Number of attention heads
         feed_forward_expansion_factor (int, optional): Expansion factor of feed forward module
-        conv_expansion_factor (int, optional): Expansion factor of conformer convolution module
         feed_forward_dropout_p (float, optional): Probability of feed forward module dropout
         attention_dropout_p (float, optional): Probability of attention module dropout
-        conv_dropout_p (float, optional): Probability of conformer convolution module dropout
-        conv_kernel_size (int or tuple, optional): Size of the convolving kernel
+        dropout_p (float, optional): Probability of conformer dropout
+        conv_kernel_size (int or tuple, optional): Size of the convolution kernel
         half_step_residual (bool): Flag indication whether to use half step residual or not
 
     Inputs: inputs, input_lengths
@@ -145,41 +153,29 @@ class ConformerEncoder(nn.Module):
             num_layers: int = 12,
             num_attention_heads: int = 4,
             feed_forward_expansion_factor: int = 4,
-            conv_expansion_factor: int = 2,
             input_dropout_p: float = 0.1,
             feed_forward_dropout_p: float = 0.1,
             attention_dropout_p: float = 0.1,
-            conv_dropout_p: float = 0.1,
+            dropout_p: float = 0.1,
             conv_kernel_size: int = 31,
             half_step_residual: bool = True,
     ):
         super(ConformerEncoder, self).__init__()
         self.conv_subsample = Conv2dSubsampling(in_channels=1, output_dim=encoder_dim)
-        self.input_projection = nn.Sequential(
-            Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim),
-            nn.Dropout(p=input_dropout_p),
-        )
+
+        self.input_projection = Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim)
+        self.pos_encoding = RelPositionalEncoding(encoder_dim, input_dropout_p)
+
         self.layers = nn.ModuleList([ConformerBlock(
             encoder_dim=encoder_dim,
             num_attention_heads=num_attention_heads,
             feed_forward_expansion_factor=feed_forward_expansion_factor,
-            conv_expansion_factor=conv_expansion_factor,
             feed_forward_dropout_p=feed_forward_dropout_p,
             attention_dropout_p=attention_dropout_p,
-            conv_dropout_p=conv_dropout_p,
+            dropout_p=dropout_p,
             conv_kernel_size=conv_kernel_size,
             half_step_residual=half_step_residual,
         ) for _ in range(num_layers)])
-
-    def count_parameters(self) -> int:
-        """ Count parameters of encoder """
-        return sum([p.numel() for p in self.parameters()])
-
-    def update_dropout(self, dropout_p: float) -> None:
-        """ Update dropout probability of encoder """
-        for name, child in self.named_children():
-            if isinstance(child, nn.Dropout):
-                child.p = dropout_p
 
     def forward(self, inputs: Tensor, input_lengths: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -198,9 +194,15 @@ class ConformerEncoder(nn.Module):
             * output_lengths (torch.LongTensor): The length of output tensor. ``(batch)``
         """
         outputs, output_lengths = self.conv_subsample(inputs, input_lengths)
-        outputs = self.input_projection(outputs)
+        outputs, pos_emb = self.pos_encoding(self.input_projection(outputs))
+
+        masks = (~make_pad_mask(output_lengths)[:, None, :]).to(outputs.device)
+        outputs = (outputs, pos_emb)
 
         for layer in self.layers:
-            outputs = layer(outputs)
+            outputs, masks = layer(outputs, masks)
+
+        if isinstance(outputs, tuple):
+            outputs = outputs[0]
 
         return outputs, output_lengths

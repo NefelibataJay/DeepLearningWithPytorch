@@ -153,7 +153,7 @@ class BranchformerEncoder(torch.nn.Module):
         We believe that Espnet made some errors in calculating the Mask length after the convolution
         So we use the following code to calculate the mask length
         """
-        masks = (~make_pad_mask(outputs_lengths)[:, None, :])
+        masks = (~make_pad_mask(outputs_lengths)[:, None, :]).unsqueeze(1)
 
         for layer in self.encoders:
             outputs, masks = layer(outputs, masks)

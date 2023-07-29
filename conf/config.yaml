@@ -53,11 +53,10 @@ model:
     num_encoder_layers: 12
     num_attention_heads: 8
     feed_forward_expansion_factor: 4
-    conv_expansion_factor: 2
     input_dropout_p: 0.1
     feed_forward_dropout_p: 0.1
     attention_dropout_p: 0.1
-    conv_dropout_p: 0.1
+    dropout_p: 0.1
     conv_kernel_size: 31
     half_step_residual: True
 

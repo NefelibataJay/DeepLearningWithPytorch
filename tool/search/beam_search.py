@@ -15,19 +15,6 @@ class BeamSearch:
         self.blank_id = blank_id
         self.length_penalty = length_penalty
 
-    def __call__(self, log_probs, output_lens, _type="ctc"):
-        assert _type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if _type == "ctc":
-            hyps, scores = self.ctc_beam_search(log_probs, output_lens)
-        elif _type == "attention":
-            # TODO : attention beam search
-            pass
-        elif _type == "transducer":
-            # TODO : transducer beam search
-            pass
-
-        return hyps, scores
-
     def ctc_beam_search(self, log_probs: torch.Tensor, output_lens: torch.Tensor):
         batch_size = log_probs.shape[0]
         topk_prob, topk_index = log_probs.topk(self.beam_size, dim=2)

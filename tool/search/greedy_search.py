@@ -12,19 +12,6 @@ class GreedySearch:
         self.pad_id = pad_id
         self.blank_id = blank_id
 
-    def __call__(self, log_probs, output_lens, _type="ctc"):
-        assert _type in ["ctc", "attention", "transducer"], "Decode_type Not Support!"
-        if _type == "ctc":
-            hyps, scores = self.ctc_greedy_search(log_probs, output_lens)
-        elif _type == "attention":
-            # TODO : attention greedy search
-            pass
-        elif _type == "transducer":
-            # TODO : transducer greedy search
-            pass
-
-        return hyps, scores
-
     def _greedy_search(self, log_probs):
         """
         TODO add Batch
@@ -39,11 +26,14 @@ class GreedySearch:
         indices = [i for i in indices if i != self.blank_id]
         return indices
 
-    def ctc_greedy_search(self, encoder_out: torch.Tensor, encoder_out_lens: torch.Tensor):
+    def ctc_greedy_search(self, ctc_model, speech, speech_lengths):
         """ implement ctc greedy search from wenet """
-        batch_size = encoder_out.shape[0]
-        max_len = encoder_out.shape[1]
-        ctc_probs = encoder_out.log_softmax(dim=2)
+        encoder_out, encoder_out_lens = ctc_model.encoder(speech, speech_lengths)
+        logits = ctc_model.fc(encoder_out).log_softmax(dim=-1)
+
+        batch_size = logits.shape[0]
+        max_len = logits.shape[1]
+        ctc_probs = logits.log_softmax(dim=2)
         # topk_index = log_probs.argmax(2)
         topk_prob, topk_index = ctc_probs.topk(1, dim=2)  # (B, max_len, 1)
         topk_index = topk_index.view(batch_size, max_len)  # (B, max_len)
