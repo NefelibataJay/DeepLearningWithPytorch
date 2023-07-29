@@ -58,7 +58,7 @@ class ConformerBlock(nn.Module):
         self.self_attn = RelPositionMultiHeadedAttention(num_attention_heads, encoder_dim, attention_dropout_p)
 
         self.norm_conv = nn.LayerNorm(encoder_dim)
-        self.conv = ConvolutionModule(encoder_dim, conv_kernel_size)
+        self.conv_module = ConvolutionModule(encoder_dim, conv_kernel_size)
 
         self.f2 = FeedForwardModule(
             encoder_dim=encoder_dim,
