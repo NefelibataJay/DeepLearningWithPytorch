@@ -57,8 +57,10 @@ model:
     cgmlp_conv_kernel_size: 31
     merge_conv_kernel: 31
     dropout_rate: 0.1
+    feed_forward_dropout_rate: 0.1
     positional_dropout_rate: 0.1
     attention_dropout_rate: 0.1
+    use_linear_after_conv: False
     half_step_residual: True
 
   decoder:

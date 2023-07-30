@@ -130,8 +130,13 @@ class EBranchformerEncoder(torch.nn.Module):
             half_step_residual: bool = True,
     ):
         super().__init__()
-        self.conv_subsample = Conv2dSubsampling(in_channels=1, output_dim=encoder_dim)
-        self.input_projection = torch.nn.Linear(encoder_dim * (((input_dim - 1) // 2 - 1) // 2), encoder_dim)
+        # self.conv_subsample = Conv2dSubsampling(in_channels=1, output_dim=encoder_dim)
+
+        self.input_projection = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, encoder_dim),
+            torch.nn.LayerNorm(encoder_dim),
+            torch.nn.Dropout(dropout_rate)
+        )
         self.pos_enc = RelPositionalEncoding(encoder_dim, positional_dropout_rate)
 
         self.dropout = nn.Dropout(dropout_rate)
@@ -155,23 +160,21 @@ class EBranchformerEncoder(torch.nn.Module):
         self.after_norm = nn.LayerNorm(encoder_dim)
 
     def forward(self, inputs: Tensor, input_lengths: Tensor, ):
-        """
-            Args:
-
-        """
-        outputs, outputs_lengths = self.conv_subsample(inputs, input_lengths)
-        outputs = self.pos_enc(self.input_projection(outputs))
+        # outputs, outputs_lengths = self.conv_subsample(inputs, input_lengths)
+        outputs = self.pos_enc(self.input_projection(inputs))
         """ 
         We believe that Espnet made some errors in calculating the Mask length after the convolution
         So we use the following code to calculate the mask length
         """
-        masks = (~make_pad_mask(outputs_lengths)[:, None, :])
+        masks = (~make_pad_mask(input_lengths)[:, None, :]).to(outputs.device)
 
         for layer in self.encoders:
-            outputs,masks = layer(outputs, masks)
+            outputs, masks = layer(outputs, masks)
 
         if isinstance(outputs, tuple):
             outputs = outputs[0]
         outputs = self.after_norm(outputs)
+
+        outputs_lengths = masks.squeeze(1).sum(1)
 
         return outputs, outputs_lengths

@@ -32,7 +32,8 @@ class BranchformerBlock(torch.nn.Module):
             self.ff_scale = 1
 
         self.dropout = torch.nn.Dropout(dropout_rate)
-        self.feed_forward_f = FeedForwardModule(encoder_dim, feed_forward_expansion_factor, feed_forward_dropout_rate)
+        # NOTE: Espnet uses a different order of modules
+        # self.feed_forward_f = FeedForwardModule(encoder_dim, feed_forward_expansion_factor, feed_forward_dropout_rate)
 
         self.atte_norm = nn.LayerNorm(encoder_dim)
         self.attn = RelPositionMultiHeadedAttention(
@@ -62,7 +63,7 @@ class BranchformerBlock(torch.nn.Module):
         else:
             x, pos_emb = x_input, None
 
-        x = x + self.feed_forward_f(x) * self.ff_scale
+        # x = x + self.feed_forward_f(x) * self.ff_scale
         # to two branches
         x1 = x
         x2 = x
@@ -153,7 +154,8 @@ class BranchformerEncoder(torch.nn.Module):
         We believe that Espnet made some errors in calculating the Mask length after the convolution
         So we use the following code to calculate the mask length
         """
-        masks = (~make_pad_mask(outputs_lengths)[:, None, :]).unsqueeze(1)
+        # (~make_pad_mask(input_lengths)[:, None, :]) == (~make_pad_mask(input_lengths).squeeze(1)
+        masks = (~make_pad_mask(input_lengths)[:, None, :])[:, :, :-2:2][:, :, :-2:2].to(outputs.device)
 
         for layer in self.encoders:
             outputs, masks = layer(outputs, masks)

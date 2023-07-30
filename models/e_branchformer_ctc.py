@@ -3,7 +3,7 @@ from omegaconf import DictConfig
 from torch import Tensor
 from torch.nn import Linear
 
-from models.encoder.branchformer_encoder import BranchformerEncoder
+from models.encoder.e_branchformer_encoder import EBranchformerEncoder
 from tool.loss import CTC
 
 
@@ -19,7 +19,7 @@ class BranchformerCTC(torch.nn.Module):
         self.pad_id = self.configs.tokenizer.pad_id
         self.blank_id = self.configs.tokenizer.blank_id
 
-        self.encoder = BranchformerEncoder(
+        self.encoder = EBranchformerEncoder(
             input_dim=self.encoder_configs.input_dim,
             encoder_dim=self.encoder_configs.encoder_dim,
             num_layers=self.encoder_configs.num_layers,
@@ -33,7 +33,6 @@ class BranchformerCTC(torch.nn.Module):
             feed_forward_dropout_rate=self.encoder_configs.feed_forward_dropout_rate,
             cgmlp_conv_dropout_rate=self.encoder_configs.cgmlp_conv_dropout_rate,
             half_step_residual=self.encoder_configs.half_step_residual,
-            merge_type=self.encoder_configs.merge_type,
         )
 
         self.fc = Linear(self.encoder_configs.encoder_dim, self.num_classes, bias=False)

@@ -1,7 +1,7 @@
-seed: 42
+seed: 42 # 2022
 tokenizer_name: chinese_char
 dataset_name: aishell
-model_name: conformer_ctc
+model_name: branchformer_ctc
 loss_name: ctc
 optimizer_name: adam
 scheduler_name: warmup_lr
@@ -11,7 +11,7 @@ search_name: greedy_search
 
 train_conf:
   batch_size: 32
-  max_epoch: 50
+  max_epoch: 70
   valid_interval: 5
   save_interval: 10
   accum_grad: 4
@@ -34,9 +34,9 @@ dataset:
 
   spec_aug: True
   spec_aug_conf:
-    max_t_mask: 20
-    max_f_mask: 10
-    num_t_mask: 2
+    max_t_mask: 0.05
+    max_f_mask: 27
+    num_t_mask: 5
     num_f_mask: 2
 
 dataloader:
@@ -50,22 +50,28 @@ model:
   encoder:
     input_dim: ${dataset.num_mel_bins}
     encoder_dim: 256
-    num_encoder_layers: 12
-    num_attention_heads: 4
+    num_layers: 12
+    attention_heads: 4
     feed_forward_expansion_factor: 8
-    input_dropout_p: 0.1
-    feed_forward_dropout_p: 0.1
-    attention_dropout_p: 0.1
-    dropout_p: 0.1
-    conv_kernel_size: 31  # 15
+    cgmlp_linear_expansion_factor: 8
+    cgmlp_conv_kernel_size: 31
+    dropout_rate: 0.1
+    feed_forward_dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    attention_dropout_rate: 0.1
     half_step_residual: True
+    merge_type: concat
+
 
 optimizer:
-  lr: 0.0005
-#  weight_decay: 0.000001
+  lr: 0.001
+  weight_decay: 0.000001
 
 lr_scheduler:
-  warmup_steps: 30000
+  warmup_steps: 35000
+
+loss:
+  blank_id: ${tokenizer.blank_id}
 
 metric:
   ignore_case: True
@@ -73,7 +79,9 @@ metric:
 
 search:
   decode_type: ctc
+  max_length : 100
   sos_id : ${tokenizer.sos_id}
   eos_id : ${tokenizer.eos_id}
   pad_id : ${tokenizer.pad_id}
   blank_id : ${tokenizer.blank_id}
+
