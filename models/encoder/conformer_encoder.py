@@ -19,7 +19,7 @@ from typing import Tuple
 
 from models.modules.embedding import RelPositionalEncoding
 from models.modules.feed_forward import FeedForwardModule
-from models.modules.attention import ConformerAttentionModule, RelPositionMultiHeadedAttention
+from models.modules.attention import RelPositionMultiHeadedAttention
 from models.modules.convolution import (
     Conv2dSubsampling, ConvolutionModule,
 )

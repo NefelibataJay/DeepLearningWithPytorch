@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from models.modules.attention import MultiHeadedAttention
+from models.modules.embedding import PositionalEncoding
 from models.modules.feed_forward import PositionwiseFeedForward
 from models.modules.mask import make_pad_mask, subsequent_mask
 
@@ -25,7 +26,7 @@ class TransformerDecoderBlock(torch.nn.Module):
         self.src_attn = MultiHeadedAttention(attention_heads, attention_dim, src_attention_dropout_rate)
         self.ff = PositionwiseFeedForward(attention_dim, linear_units, dropout_rate)
 
-    def forward(self, tgt, tgt_mask, memory, memory_mask, cache=None):
+    def forward(self, tgt, tgt_mask, memory, memory_mask):
         """
         Args:
             tgt (torch.Tensor): Input tensor (#batch, maxlen_out, attention_dim).
@@ -35,8 +36,6 @@ class TransformerDecoderBlock(torch.nn.Module):
                 (#batch, maxlen_in, attention_dim).
             memory_mask (torch.Tensor): Encoded memory mask
                 (#batch, maxlen_in).
-            cache (torch.Tensor): cached tensors.
-                (#batch, maxlen_out - 1, attention_dim).
         Returns:
             torch.Tensor: Output tensor (#batch, maxlen_out, attention_dim).
             torch.Tensor: Mask for output tensor (#batch, maxlen_out).
@@ -45,34 +44,15 @@ class TransformerDecoderBlock(torch.nn.Module):
 
         """
         residual = tgt
-
         tgt = self.norm1(tgt)
-
-        if cache is None:
-            tgt_q = tgt
-            tgt_q_mask = tgt_mask
-        else:
-            # compute only the last frame query keeping dim: max_time_out -> 1
-            assert cache.shape == (
-                tgt.shape[0],
-                tgt.shape[1] - 1,
-                self.size,
-            ), "{cache.shape} == {(tgt.shape[0], tgt.shape[1] - 1, self.size)}"
-            tgt_q = tgt[:, -1:, :]
-            residual = residual[:, -1:, :]
-            tgt_q_mask = tgt_mask[:, -1:, :]
-
-        x = residual + self.dropout(self.self_attn(tgt_q, tgt, tgt, tgt_q_mask)[0])
+        x = residual + self.dropout(self.self_attn(tgt, tgt, tgt, tgt_mask)[0])
 
         residual = x
         x = self.norm2(x)
         x = residual + self.dropout(self.src_attn(x, memory, memory, memory_mask)[0])
 
         residual = x
-        x = residual + self.dropout(self.feed_forward(x))
-
-        if cache is not None:
-            x = torch.cat([cache, x], dim=1)
+        x = residual + self.dropout(self.ff(x))
 
         return x, tgt_mask, memory, memory_mask
 
@@ -90,8 +70,8 @@ class TransformerDecoder(torch.nn.Module):
                  src_attention_dropout_rate: float = 0.0,
                  ):
         super().__init__()
-        self.embed = torch.nn.Embedding(vocab_size, attention_dim)
-        self.pe = None
+        self.embed = torch.nn.Sequential(torch.nn.Embedding(vocab_size, attention_dim),
+                                         PositionalEncoding(attention_dim, positional_dropout_rate))
 
         self.before_norm = torch.nn.LayerNorm(attention_dim, eps=1e-5)
         self.output_layer = torch.nn.Linear(attention_dim, vocab_size)
@@ -103,12 +83,12 @@ class TransformerDecoder(torch.nn.Module):
             for _ in range(num_layers)
         ])
 
-    def forward(self, memory: torch.Tensor, memory_mask: torch.Tensor, ys_in_pad: torch.Tensor,
+    def forward(self, encoder_outputs: torch.Tensor, encoder_outputs_length: torch.Tensor, ys_in_pad: torch.Tensor,
                 ys_in_lens: torch.Tensor, ):
         """
          Args:
-            memory: encoded memory, float32  (batch, maxlen_in, feat)
-            memory_mask: encoder memory mask, (batch, 1, maxlen_in)
+            encoder_outputs: encoded memory, float32  (batch, maxlen_in, feat)
+            encoder_outputs_length: encoder memory mask, (batch,)
             ys_in_pad: padded input token ids, int64 (batch, maxlen_out)
             ys_in_lens: input lengths of this batch (batch)
         Returns:
@@ -118,20 +98,27 @@ class TransformerDecoder(torch.nn.Module):
                 olens: (batch, )
         """
         tgt = ys_in_pad
-        max_len = tgt.size(1)
         # tgt_mask: (B, 1, L)
-        tgt_mask = ~make_pad_mask(ys_in_lens, max_len).unsqueeze(1)
-        tgt_mask = tgt_mask.to(tgt.device)
+        tgt_mask = (~make_pad_mask(ys_in_lens, )[:, None, :]).to(tgt.device)
         # m: (1, L, L)
         m = subsequent_mask(tgt_mask.size(-1),
                             device=tgt_mask.device).unsqueeze(0)
         # tgt_mask: (B, L, L)
         tgt_mask = tgt_mask & m
+
+        memory = encoder_outputs
+        memory_mask = (~make_pad_mask(encoder_outputs_length, maxlen=encoder_outputs.size(1)))[:, None, :].to(
+            encoder_outputs.device
+        )
+
         x, _ = self.embed(tgt)
+
         for layer in self.decoders:
-            x, tgt_mask, memory, memory_mask = layer(x, tgt_mask, memory,
-                                                     memory_mask)
+            x, tgt_mask, memory, memory_mask = layer(x, tgt_mask, memory, memory_mask)
+
         x = self.before_norm(x)
         x = self.output_layer(x)
+
+        # maybe need to change
         olens = tgt_mask.sum(1)
         return x, olens

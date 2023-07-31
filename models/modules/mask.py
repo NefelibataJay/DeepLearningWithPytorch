@@ -200,5 +200,9 @@ def make_pad_mask(lengths, xs=None, length_dim=-1, maxlen=None):
 
 if __name__ == "__main__":
     lengths = torch.tensor([5, 3, 2])
-    mask = ~make_non_pad_mask(lengths)
+    mask = (~make_pad_mask(lengths, maxlen=5)[:, None, :])
+    print(mask)
     print(mask.shape)
+    m = subsequent_mask(mask.size(-1), ).unsqueeze(0)
+    print(m.shape)
+    print(mask & m)

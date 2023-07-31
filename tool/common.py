@@ -105,14 +105,21 @@ def add_blank(ys_pad: torch.Tensor, blank: int,
 
 
 if __name__ == "__main__":
+    sos = 1
+    eos = 2
     blank = 3
     ys_pad = torch.tensor([[1, 2, 3, 4, 5],
                            [4, 5, 6, 0, 0],
                            [7, 8, 9, 0, 0]], dtype=torch.int32)
-    blank_y = add_blank(ys_pad, blank, ignore_id=0)
-    print(blank_y)
-    sos_y = add_sos(blank_y, sos=1, pad=0)
-    print(sos_y)
+    # blank_y = add_blank(ys_pad, blank, ignore_id=0)
+    # print(blank_y)
+    # sos_y = add_sos(blank_y, sos=1, pad=0)
+    # print(sos_y)
+    #
+    # rnnt_text = torch.where(ys_pad == 0, 3, ys_pad).to(torch.int32)
+    # print(rnnt_text)
+    # text = add_sos_eos(ys_pad, sos, eos, pad=0)
+    # print(text)
+    # print(add_eos(ys_pad, eos, pad=0))
+    # print(add_sos(ys_pad, sos, pad=0))
 
-    rnnt_text = torch.where(ys_pad == 0, 3, ys_pad).to(torch.int32)
-    print(rnnt_text)
