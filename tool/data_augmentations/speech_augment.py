@@ -22,10 +22,6 @@ class SpecAugment:
 
 
 def spec_sub(feature, max_t=20, num_t_sub=3):
-    """ Do spec substitute
-        Inplace operation
-        ref: U2++, section 3.2.3 [https://arxiv.org/abs/2106.05642]
-    """
     y = feature.clone().detach()
     max_frames = y.size(0)
     for i in range(num_t_sub):

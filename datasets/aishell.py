@@ -71,6 +71,8 @@ class AishellDataset(Dataset):
             signal = torchaudio.functional.resample(signal, sr, self.sample_rate)
         # signal = signal * (1 << 15)
 
+        # TODO add speed_perturb
+
         feature = self.extract_feature(signal)
         feature = self.spec_aug(feature)
 

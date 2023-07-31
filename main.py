@@ -43,7 +43,7 @@ def main():
         model.load_state_dict(torch.load(args.checkpoint_path))
         model.eval()
 
-        trainer = ConformerCTCTrainer(config, tokenizer, model, optimizer, scheduler, criterion, metric, args.device)
+        trainer = ConformerCTCTrainer(config, tokenizer, model, optimizer, scheduler, metric, args.device)
         trainer.test(test_dataloader)
 
 

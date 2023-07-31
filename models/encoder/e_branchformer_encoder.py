@@ -162,11 +162,12 @@ class EBranchformerEncoder(torch.nn.Module):
     def forward(self, inputs: Tensor, input_lengths: Tensor, ):
         # outputs, outputs_lengths = self.conv_subsample(inputs, input_lengths)
         outputs = self.pos_enc(self.input_projection(inputs))
+
         """ 
         We believe that Espnet made some errors in calculating the Mask length after the convolution
         So we use the following code to calculate the mask length
         """
-        masks = (~make_pad_mask(input_lengths)[:, None, :]).to(outputs.device)
+        masks = (~make_pad_mask(input_lengths)[:, None, :]).to(outputs[0].device)
 
         for layer in self.encoders:
             outputs, masks = layer(outputs, masks)

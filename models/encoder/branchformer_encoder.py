@@ -144,10 +144,6 @@ class BranchformerEncoder(torch.nn.Module):
         self.after_norm = nn.LayerNorm(encoder_dim)
 
     def forward(self, inputs: Tensor, input_lengths: Tensor, ):
-        """
-            Args:
-
-        """
         outputs, outputs_lengths = self.conv_subsample(inputs, input_lengths)
         outputs = self.pos_enc(self.input_projection(outputs))
         """ 
@@ -155,7 +151,7 @@ class BranchformerEncoder(torch.nn.Module):
         So we use the following code to calculate the mask length
         """
         # (~make_pad_mask(input_lengths)[:, None, :]) == (~make_pad_mask(input_lengths).squeeze(1)
-        masks = (~make_pad_mask(input_lengths)[:, None, :])[:, :, :-2:2][:, :, :-2:2].to(outputs.device)
+        masks = (~make_pad_mask(input_lengths)[:, None, :])[:, :, :-2:2][:, :, :-2:2].to(outputs[0].device)
 
         for layer in self.encoders:
             outputs, masks = layer(outputs, masks)

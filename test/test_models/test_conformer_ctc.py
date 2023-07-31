@@ -35,3 +35,7 @@ def test_conformer_ctc():
     loss = ctc_criterion(logits,output_lengths, targets, target_lengths)
 
     print(loss)
+
+
+if __name__ == '__main__':
+    test_conformer_ctc()
