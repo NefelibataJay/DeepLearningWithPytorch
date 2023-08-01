@@ -160,6 +160,11 @@ class AishellPreprocess(ManifestPreprocess):
         pass
 
 
+class DatatangDialectPreprocess(ManifestPreprocess):
+    def __init__(self, root_path="../Datatang-Dialect/", output_manifest_path="../manifests/dialect/", ):
+        super().__init__(root_path, output_manifest_path)
+
+
 def main(args):
     if args.dataset == "librispeech":
         manifest_preprocess = LibriSpeechManifestPreprocess(args.dataset_path, args.output_path)
