@@ -2,20 +2,12 @@ from itertools import groupby
 
 import numpy as np
 
+from tool.tokenize.tokenizer import Tokenizer
+
 
 class ErrorCalculator(object):
-    """Calculate CER and WER for E2E_ASR and CTC models during training.
-
-    :param y_hats: numpy array with predicted text
-    :param y_pads: numpy array with true (target) text
-    :param char_list:
-    :param sym_space:
-    :param sym_blank:
-    :return:
-    """
-
     def __init__(
-            self, char_list, pad=0, blank=3, report_cer=False,
+            self, tokenizer: Tokenizer, sos=1, eos=2, pad=0, blank=3, report_cer=False,
             report_wer=False
     ):
         """Construct an ErrorCalculator object."""
@@ -24,8 +16,10 @@ class ErrorCalculator(object):
         self.report_cer = report_cer
         self.report_wer = report_wer
 
-        self.char_list = char_list
+        self.tokenizer = tokenizer
         self.pad = pad
+        self.sos = sos
+        self.eos = eos
         self.blank = blank
 
     def __call__(self, ys_hat, ys_pad, is_ctc=False):
@@ -64,6 +58,9 @@ class ErrorCalculator(object):
         :rtype list
         """
         seqs_hat, seqs_true = [], []
+        seq_hat = self.tokenizer.int2text(ys_hat)
+        seqs_true = self.tokenizer.int2text(ys_pad)
+
         for i, y_hat in enumerate(ys_hat):
             y_true = ys_pad[i]
             eos_true = np.where(y_true == -1)[0]
@@ -148,3 +145,7 @@ class ErrorCalculator(object):
 
         cer_ctc = float(sum(cers)) / sum(char_ref_lens) if cers else None
         return cer_ctc
+
+
+if __name__ == "__main__":
+    pass

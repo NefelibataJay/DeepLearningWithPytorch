@@ -3,16 +3,19 @@ import os
 import torch
 from omegaconf import OmegaConf
 import sys
+
 curPath = os.path.abspath(os.path.dirname(__file__))
 rootPath = os.path.split(curPath)[0]
 sys.path.append(rootPath)
 
-from trainer.conformer_ctc_trainer import ConformerCTCTrainer
+from trainer.inferencer import SpeechToText
+from trainer.trainer import Trainer
 from util.initialize import init_config
 
 
 def main():
     args = get_args()
+    device = args.device
     config = get_config(args.config_path)
 
     config.dataset.dataset_path = args.dataset_path
@@ -28,7 +31,7 @@ def main():
             model.load_state_dict(torch.load(args.checkpoint_path))
 
         # train model
-        trainer = ConformerCTCTrainer(config, tokenizer, model, optimizer, scheduler, metric, args.device)
+        trainer = Trainer(config, tokenizer, model, optimizer, scheduler, metric, device)
         trainer.train(train_dataloader, valid_dataloader)
 
         # final save model
@@ -38,13 +41,13 @@ def main():
         torch.save(model.state_dict(), os.path.join(config.save_path, "checkpoints", f"{config.model_name}_final.pt"))
     else:
         assert args.checkpoint_path is not None, "checkpoint path must be not None"
-        model, tokenizer, optimizer, scheduler, criterion, metric, test_dataloader = init_config(config, stage="test")
+        model, tokenizer, metric, test_dataloader = init_config(config, stage="test")
 
         model.load_state_dict(torch.load(args.checkpoint_path))
         model.eval()
 
-        trainer = ConformerCTCTrainer(config, tokenizer, model, optimizer, scheduler, metric, args.device)
-        trainer.test(test_dataloader)
+        inference = SpeechToText(config, tokenizer, model, metric, device)
+        inference.recognition(test_dataloader)
 
 
 def get_config(config_path):

@@ -15,21 +15,19 @@ from tool.metrics import REGISTERED_METRICS
 def init_config(config, stage='train'):
     init_seed(config.seed)
     tokenizer = init_tokenizer(config)
-
     num_classes = len(tokenizer)
     config.model.num_classes = num_classes
-
     model = init_model(config)
-    optimizer = init_optimizer(model, config)
-    scheduler = init_scheduler(optimizer, config)
     metric = init_metric(config)
 
     if stage == 'train':
+        optimizer = init_optimizer(model, config)
+        scheduler = init_scheduler(optimizer, config)
         train_dataloader, valid_dataloader = init_dataloader(config, tokenizer, stage=stage)
         return model, tokenizer, optimizer, scheduler, metric, train_dataloader, valid_dataloader,
     else:
         test_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, optimizer, scheduler, metric, test_dataloader
+        return model, tokenizer, metric, test_dataloader
 
 
 def init_seed(seed: int = 42):
@@ -52,7 +50,7 @@ def init_dataloader(config, tokenizer, stage='train'):
         return train_dataloader, valid_dataloader
     else:
         test_datasets = REGISTER_DATASET[config.dataset_name](config, tokenizer, stage='test')
-        test_dataloader = DataLoader(test_datasets, batch_size=5, shuffle=False, collate_fn=_collate_fn)
+        test_dataloader = DataLoader(test_datasets, batch_size=1, shuffle=False, collate_fn=_collate_fn)
         return test_dataloader
 
 

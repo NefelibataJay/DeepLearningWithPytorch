@@ -11,13 +11,13 @@ from tool.tokenize.tokenizer import Tokenizer
 class Trainer:
     def __init__(self, config: DictConfig,
                  tokenizer: Tokenizer,
-                 model: torch.nn.Module, frontend,
+                 model: torch.nn.Module,
                  optimizer: torch.optim,
                  scheduler: torch.optim.lr_scheduler,
                  metric, device) -> None:
         self.config = config
         self.tokenizer = tokenizer
-        self.frontend = frontend  # TODO: add frontend
+        # self.frontend = frontend  # TODO: add frontend
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler

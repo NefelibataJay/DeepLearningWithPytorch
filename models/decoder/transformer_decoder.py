@@ -101,8 +101,7 @@ class TransformerDecoder(torch.nn.Module):
         # tgt_mask: (B, 1, L)
         tgt_mask = (~make_pad_mask(ys_in_lens, )[:, None, :]).to(tgt.device)
         # m: (1, L, L)
-        m = subsequent_mask(tgt_mask.size(-1),
-                            device=tgt_mask.device).unsqueeze(0)
+        m = subsequent_mask(tgt_mask.size(-1), device=tgt_mask.device).unsqueeze(0)
         # tgt_mask: (B, L, L)
         tgt_mask = tgt_mask & m
 
@@ -122,3 +121,36 @@ class TransformerDecoder(torch.nn.Module):
         # maybe need to change
         olens = tgt_mask.sum(1)
         return x, olens
+
+    def forward_one_step(
+            self,
+            encoder_outputs: torch.Tensor,
+            encoder_outputs_length: torch.Tensor,
+            tgt: torch.Tensor,
+            tgt_mask: torch.Tensor,
+    ):
+        """ This is only used for decoding.
+            Args:
+                encoder_outputs: encoded memory, float32  (batch, maxlen_in, feat)
+                encoder_outputs_length: encoded memory mask, (batch, 1, maxlen_in)
+                tgt: input token ids, int64 (batch, maxlen_out)
+                tgt_mask: input token mask,  (batch, maxlen_out)
+                          dtype=torch.uint8 in PyTorch 1.2-
+                          dtype=torch.bool in PyTorch 1.2+ (include 1.2)
+            Returns:
+                y, cache: NN output value and cache per `self.decoders`.
+                y.shape` is (batch, maxlen_out, token)
+        """
+        memory = encoder_outputs
+        memory_mask = (~make_pad_mask(encoder_outputs_length, maxlen=encoder_outputs.size(1)))[:, None, :].to(
+            encoder_outputs.device
+        )
+
+        x, _ = self.embed(tgt)
+        for layer in self.decoders:
+            x, tgt_mask, memory, memory_mask = layer(x, tgt_mask, memory, memory_mask)
+
+        x = self.before_norm(x)
+        y = x[:, -1]
+        y = torch.log_softmax(self.output_layer(y), dim=-1)
+        return y

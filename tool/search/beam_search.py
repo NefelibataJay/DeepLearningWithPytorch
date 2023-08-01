@@ -1,11 +1,12 @@
 import torch
 import torch.nn.functional as F
 
+from models.modules.mask import subsequent_mask, mask_finished_scores, mask_finished_preds
 from tool.search.hypotheses import BeamHypotheses
 
 
 class BeamSearch:
-    def __init__(self, length_penalty: int = 0, beam_size: int = 1, max_length: int = 100, sos_id: int = 1,
+    def __init__(self, length_penalty: int = 0, beam_size: int = 10, max_length: int = 100, sos_id: int = 1,
                  eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
         self.beam_size = beam_size
         self.max_length = max_length
@@ -16,11 +17,104 @@ class BeamSearch:
         self.length_penalty = length_penalty
 
     def ctc_beam_search(self, log_probs: torch.Tensor, output_lens: torch.Tensor):
+        """ TODO """
         batch_size = log_probs.shape[0]
         topk_prob, topk_index = log_probs.topk(self.beam_size, dim=2)
         hyps = None
         scores = None
         return hyps, scores
+
+    def ctc_prefix_beam_search(
+            self,
+            speech: torch.Tensor,
+            speech_lengths: torch.Tensor,
+            model,
+    ):
+        batch_size = speech.shape[0]
+        beam_size = self.beam_size
+
+        encoder_out, encoder_out_len = model.encoder()
+
+        assert batch_size == 1
+
+    def attention_beam_search(
+            self,
+            speech: torch.Tensor,
+            speech_lengths: torch.Tensor,
+            model,
+    ):
+        device = speech.device
+        batch_size = speech.shape[0]
+        beam_size = self.beam_size
+        # encoder   # (B, max_len, encoder_dim)
+        encoder_out, encoder_out_len = model.encoder(speech, speech_lengths)
+        max_len = encoder_out.size(1)
+        encoder_dim = encoder_out.size(2)
+        running_size = batch_size * beam_size
+        # (B*N, max_len, encoder_dim)
+        encoder_out = encoder_out.unsqueeze(1).repeat(1, beam_size, 1, 1).view(running_size, max_len, encoder_dim)
+        # (B*N, 1, max_len)
+        # encoder_mask = encoder_mask.unsqueeze(1).repeat(1, beam_size, 1, 1).view(running_size, 1, max_len)
+
+        hyps = torch.ones([running_size, 1], dtype=torch.long, device=device).fill_(self.sos_id)  # (B*N, 1)
+        scores = torch.tensor([0.0] + [-float('inf')] * (beam_size - 1),dtype=torch.float)
+        scores = scores.repeat([batch_size]).unsqueeze(1).to(device)
+        end_flag = torch.zeros_like(scores, dtype=torch.bool, device=device)
+
+        # decoder step by step
+        for i in range(1, max_len + 1):
+            # Stop if all batch and all beam produce eos
+            if end_flag.sum() == running_size:
+                break
+            # 2.1 Forward decoder step
+            hyps_mask = subsequent_mask(i).unsqueeze(0).repeat(running_size, 1, 1).to(device)  # (B*N, i, i)
+
+            # logp: (B*N, vocab)
+            logp = model.decoder.forward_one_step(encoder_out, encoder_out_len, hyps, hyps_mask)
+            # 2.2 First beam prune: select topk the best prob at current time
+            top_k_logp, top_k_index = logp.topk(beam_size)  # (B*N, N)
+
+            top_k_logp = mask_finished_scores(top_k_logp, end_flag)
+            top_k_index = mask_finished_preds(top_k_index, end_flag, self.eos_id)
+
+            # 2.3 Second beam prune: select topk score with history
+            scores = scores + top_k_logp  # (B*N, N), broadcast add
+            scores = scores.view(batch_size, beam_size * beam_size)  # (B, N*N)
+            scores, offset_k_index = scores.topk(k=beam_size)  # (B, N)
+
+            scores = scores.view(-1, 1)  # (B*N, 1)
+            # 2.4. Compute base index in top_k_index,
+            # regard top_k_index as (B*N*N),regard offset_k_index as (B*N),
+            # then find offset_k_index in top_k_index
+            base_k_index = torch.arange(batch_size, device=device).view(
+                -1, 1).repeat([1, beam_size])  # (B, N)
+            base_k_index = base_k_index * beam_size * beam_size
+            best_k_index = base_k_index.view(-1) + offset_k_index.view(
+                -1)  # (B*N)
+
+            # 2.5 Update best hyps
+            best_k_pred = torch.index_select(top_k_index.view(-1),
+                                             dim=-1,
+                                             index=best_k_index)  # (B*N)
+            best_hyps_index = best_k_index // beam_size
+            last_best_k_hyps = torch.index_select(
+                hyps, dim=0, index=best_hyps_index)  # (B*N, i)
+            hyps = torch.cat((last_best_k_hyps, best_k_pred.view(-1, 1)),
+                             dim=1)  # (B*N, i+1)
+
+            # 2.6 Update end flag
+            end_flag = torch.eq(hyps[:, -1], self.eos_id).view(-1, 1)
+
+        # 3. Select best of best
+        scores = scores.view(batch_size, beam_size)
+        # TODO: length normalization
+        best_scores, best_index = scores.max(dim=-1)
+        best_hyps_index = best_index + torch.arange(
+            batch_size, dtype=torch.long, device=device) * beam_size
+        best_hyps = torch.index_select(hyps, dim=0, index=best_hyps_index)
+
+        best_hyps = best_hyps[:, 1:] # remove sos
+        return best_hyps, best_scores
 
 
 def transformer_beam_search(decoder, beam_size, encoder_outputs):

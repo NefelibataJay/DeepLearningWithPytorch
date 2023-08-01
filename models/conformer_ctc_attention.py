@@ -21,6 +21,9 @@ class ConformerCTCAttention(torch.nn.Module):
         self.pad_id = self.configs.tokenizer.pad_id
         self.blank_id = self.configs.tokenizer.blank_id
 
+        self.ctc_weight = self.configs.weight_conf.ctc_weight
+        self.lsm_weight = self.configs.weight_conf.lsm_weight
+
         self.encoder = ConformerEncoder(
             input_dim=self.encoder_configs.input_dim,
             encoder_dim=self.encoder_configs.encoder_dim,
@@ -56,7 +59,7 @@ class ConformerCTCAttention(torch.nn.Module):
         self.criterion_att = LabelSmoothingLoss(
             size=self.num_classes,
             padding_idx=0,
-            smoothing=self.configs.weight_conf.lsm_weight,
+            smoothing=self.lsm_weight,
         )
 
     def forward(self, inputs: Tensor, input_lengths: Tensor, targets: Tensor, target_lengths: Tensor):
@@ -88,6 +91,6 @@ class ConformerCTCAttention(torch.nn.Module):
         att_loss = self.criterion_att(decoder_outputs, ys_out_pad)
         result["att_loss"] = att_loss
 
-        result['loss'] = ctc_loss + att_loss
+        result['loss'] = self.ctc_weight * ctc_loss + (1 - self.ctc_weight) * att_loss
 
         return result
