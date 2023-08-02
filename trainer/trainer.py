@@ -14,14 +14,13 @@ class Trainer:
                  model: torch.nn.Module,
                  optimizer: torch.optim,
                  scheduler: torch.optim.lr_scheduler,
-                 metric, device) -> None:
+                 device) -> None:
         self.config = config
         self.tokenizer = tokenizer
         # self.frontend = frontend  # TODO: add frontend
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.metric = metric
         self.device = device
         self.logger = SummaryWriter(os.path.join(self.config.save_path, "log", self.config.model_name))
 
@@ -73,7 +72,24 @@ class Trainer:
 
     @torch.no_grad()
     def validate(self, valid_dataloader, epoch):
-        pass
+        self.model.eval()
+        print("=========================Eval=========================")
+        valid_loss = 0
+        bar = tqdm(enumerate(valid_dataloader), desc=f"Training Eval")
+        for idx, batch in bar:
+            inputs, input_lengths, targets, target_lengths = batch
+            inputs = inputs.to(self.device)
+            targets = targets.to(self.device)
+            input_lengths = input_lengths.to(self.device)
+            target_lengths = target_lengths.to(self.device)
+            result = self.model(inputs, input_lengths, targets, target_lengths)
+            loss = result["loss"]
+            valid_loss += loss.item()
+            bar.set_postfix(loss='{:.4f}'.format(loss.item()))
+        valid_loss /= len(valid_dataloader)
+        self.logger.add_scalar("valid_loss", valid_loss, epoch)
+        bar.set_postfix(val_loss='{:.4f}'.format(valid_loss))
+        print("valid_loss:", valid_loss)
 
     def save_model(self, epoch):
         if not os.path.exists(self.config.save_path):

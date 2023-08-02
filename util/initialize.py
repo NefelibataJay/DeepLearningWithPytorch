@@ -18,14 +18,14 @@ def init_config(config, stage='train'):
     num_classes = len(tokenizer)
     config.model.num_classes = num_classes
     model = init_model(config)
-    metric = init_metric(config)
 
     if stage == 'train':
         optimizer = init_optimizer(model, config)
         scheduler = init_scheduler(optimizer, config)
         train_dataloader, valid_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, optimizer, scheduler, metric, train_dataloader, valid_dataloader,
+        return model, tokenizer, optimizer, scheduler, train_dataloader, valid_dataloader,
     else:
+        metric = init_metric(config)
         test_dataloader = init_dataloader(config, tokenizer, stage=stage)
         return model, tokenizer, metric, test_dataloader
 

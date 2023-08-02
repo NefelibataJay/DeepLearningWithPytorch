@@ -12,13 +12,13 @@ from util.initialize import init_search
 
 class ConformerCTCTrainer:
     def __init__(self, config: DictConfig, tokenizer: Tokenizer, model: torch.nn.Module, optimizer: torch.optim,
-                 scheduler: torch.optim.lr_scheduler, metric, device) -> None:
+                 scheduler: torch.optim.lr_scheduler, device) -> None:
         self.config = config
         self.tokenizer = tokenizer
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.metric = metric
+        self.metric = None
         self.device = device
         self.accum_grad = self.config.train_conf.accum_grad
         if self.config.train_conf.grad_clip is not None:

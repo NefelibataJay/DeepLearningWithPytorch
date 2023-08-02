@@ -50,10 +50,8 @@ class SpeechToText:
 
             predictions = [self.tokenizer.int2text(sent) for sent in best_hyps]
             targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
-            list_cer = []
-            for i, j in zip(predictions, targets):
-                list_cer.append(self.metric(i, j))
-            char_error_rate = torch.mean(torch.tensor(list_cer)) * 100
+            self.metric(predictions, targets)
+            char_error_rate = self.metric.compute() * 100
             test_acc += char_error_rate
             bar.set_postfix(acc='{:.4f}'.format(test_acc))
 
