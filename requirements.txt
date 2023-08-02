@@ -1,11 +1,11 @@
-editdistance==0.6.2
+editdistance
 jieba
 matplotlib
 numpy
-omegaconf==2.3.0
+omegaconf
 tensorboardX
 torch
 torchaudio
-torchmetrics==0.11.4
+torchmetrics
 tqdm
-typeguard==4.1.0
+typeguard
