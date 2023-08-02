@@ -1,7 +1,6 @@
 editdistance==0.6.2
 jieba==0.42.1
 matplotlib==3.7.1
-numpy==1.22.3
 numpy==1.25.1
 omegaconf==2.3.0
 sentencepiece==0.1.99
