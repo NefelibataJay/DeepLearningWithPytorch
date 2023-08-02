@@ -28,8 +28,8 @@ class Trainer:
             self.grad_clip = self.config.train_conf.grad_clip
 
     def train(self, train_dataloader, valid_dataloader):
-        self.validate(valid_dataloader, -1)
         self.model.to(self.device)
+        self.validate(valid_dataloader, -1)
         print("=========================Start Training=========================")
         for epoch in range(self.config.train_conf.max_epoch + 1):
             self.model.train()
