@@ -29,14 +29,14 @@ class Trainer:
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
-        self.validate(valid_dataloader, -1)
+        # self.validate(valid_dataloader, -1)
         print("=========================Start Training=========================")
         for epoch in range(self.config.train_conf.max_epoch + 1):
             self.model.train()
             train_loss = 0
             self.optimizer.zero_grad()
 
-            bar = tqdm(enumerate(train_dataloader), desc=f"Training Epoch:{epoch}")
+            bar = tqdm(enumerate(train_dataloader), desc=f"Training Epoch {epoch}")
             for idx, batch in bar:
                 inputs, input_lengths, targets, target_lengths = batch
                 inputs = inputs.to(self.device)
@@ -92,7 +92,8 @@ class Trainer:
         print("valid_loss:", valid_loss)
 
     def save_model(self, epoch):
-        if not os.path.exists(self.config.save_path):
-            os.makedirs(self.config.save_path)
+        checkpoints_path = os.path.join(self.config.save_path, "checkpoints")
+        if not os.path.exists(checkpoints_path):
+            os.makedirs(checkpoints_path)
         torch.save(self.model.state_dict(),
-                   os.path.join(self.config.save_path, "checkpoints", f"{self.config.model_name}_{epoch}.pt"))
+                   os.path.join(checkpoints_path, f"{self.config.model_name}_{epoch}.pt"))
