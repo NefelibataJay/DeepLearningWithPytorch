@@ -1,0 +1,96 @@
+seed: 42
+tokenizer_name: chinese_char
+dataset_name: aishell
+model_name: conformer_ctc_attention
+loss_name: ctc
+optimizer_name: adam
+scheduler_name: warmup_lr
+metric_name: cer
+save_path: ./outputs/
+
+search_name: greedy_search
+
+train_conf:
+  batch_size: 16
+  max_epoch: 150
+  valid_interval: 5
+  save_interval: 10
+  accum_grad: 4
+  grad_clip: 5
+
+tokenizer:
+  word_dict_path: ../manifests/aishell_chars/vocab.txt
+  pad_id: 0
+  sos_id: 1
+  eos_id: 2
+  blank_id: 3
+  unk_id: 4
+
+dataset:
+  dataset_path: /data/datasets/aishell/data_aishell
+  manifest_path: ../manifests/aishell_chars
+  feature_types: fbank
+  num_mel_bins: 80
+  sample_rate: 16000
+
+  spec_aug: True
+  spec_aug_conf:
+    max_t_mask: 50
+    max_f_mask: 10
+    num_t_mask: 2
+    num_f_mask: 2
+
+dataloader:
+  batch_size: ${train_conf.batch_size}
+  num_workers: 0
+  pin_memory: True
+  drop_last: True
+
+model:
+  num_classes: ??
+  encoder:
+    input_dim: ${dataset.num_mel_bins}
+    encoder_dim: 256
+    num_encoder_layers: 12  # 24
+    num_attention_heads: 4
+    feed_forward_expansion_factor: 8
+    input_dropout_p: 0.1
+    feed_forward_dropout_p: 0.1
+    attention_dropout_p: 0.0
+    dropout_p: 0.1
+    conv_kernel_size: 15  # 31
+    half_step_residual: True
+
+  decoder:
+    attention_dim: 256
+    attention_heads: 4
+    linear_units: 2048
+    num_layers: 6
+    dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    self_attention_dropout_rate: 0.0
+    src_attention_dropout_rate: 0.0
+
+optimizer:
+  lr: 0.0005
+#  weight_decay: 0.000001
+
+lr_scheduler:
+  warmup_steps: 30000
+
+weight_conf:
+    ctc_weight: 0.3
+    lsm_weight: 0.1
+
+
+# Inference
+metric:
+  ignore_case: True
+  reduction: mean
+
+search:
+  decode_type: ctc
+  sos_id : ${tokenizer.sos_id}
+  eos_id : ${tokenizer.eos_id}
+  pad_id : ${tokenizer.pad_id}
+  blank_id : ${tokenizer.blank_id}
