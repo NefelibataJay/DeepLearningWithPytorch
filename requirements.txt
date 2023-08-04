@@ -3,7 +3,7 @@ jieba
 matplotlib
 numpy
 omegaconf
-tensorboardX
+tensorboard
 torch
 torchaudio
 torchmetrics
