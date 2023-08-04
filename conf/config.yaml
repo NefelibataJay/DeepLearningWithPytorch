@@ -6,7 +6,6 @@ optimizer_name:
 scheduler_name:
 metric_name: cer
 save_path: ./outputs/
-search_name:
 
 train_conf:
   batch_size: 32
@@ -57,9 +56,11 @@ optimizer:
 lr_scheduler:
   warmup_steps: 35000
 
+
+search_name: greedy_search
 search:
   decode_type: ctc
-  sos_id : ${tokenizer.sos_id}
-  eos_id : ${tokenizer.eos_id}
-  pad_id : ${tokenizer.pad_id}
-  blank_id : ${tokenizer.blank_id}
+  sos_id: ${tokenizer.sos_id}
+  eos_id: ${tokenizer.eos_id}
+  pad_id: ${tokenizer.pad_id}
+  blank_id: ${tokenizer.blank_id}

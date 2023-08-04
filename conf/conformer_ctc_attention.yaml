@@ -6,14 +6,12 @@ optimizer_name: adam
 scheduler_name: warmup_lr
 metric_name: cer
 save_path: ./outputs/
-
 search_name: greedy_search
 
 train_conf:
   batch_size: 16
   max_epoch: 150
   valid_interval: 5
-  save_interval: 10
   accum_grad: 4
   grad_clip: 5
 
@@ -71,7 +69,7 @@ model:
     src_attention_dropout_rate: 0.0
 
 optimizer:
-  lr: 0.0005
+  lr: 0.002
 
 lr_scheduler:
   warmup_steps: 30000
