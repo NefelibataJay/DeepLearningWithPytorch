@@ -64,11 +64,6 @@ optimizer:
 lr_scheduler:
   warmup_steps: 30000
 
-# Inference
-metric:
-  ignore_case: True
-  reduction: mean
-
 search:
   decode_type: ctc
   sos_id : ${tokenizer.sos_id}
