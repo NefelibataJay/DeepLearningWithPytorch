@@ -3,7 +3,7 @@ import os
 import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer
@@ -24,12 +24,6 @@ class SpeechToText:
         self.decode = init_search(config)
         self.device = device
 
-        weights = dict(
-            decoder=1.0 - self.config.weight_conf.ctc_weight,
-            ctc=self.config.weight_conf.ctc_weight,
-            length_bonus=self.config.weight_conf.penalty,
-        )
-
         self.search = init_search(config)
 
     @torch.no_grad()
@@ -49,11 +43,11 @@ class SpeechToText:
             best_hyps, _ = self.search(inputs, input_lengths, self.model)
 
             predictions = [self.tokenizer.int2text(sent) for sent in best_hyps]
-            targets = [self.tokenizer.int2text(remove_pad(sent)) for sent in targets]
+            targets = [self.tokenizer.int2text(sent) for sent in targets]
             self.metric(predictions, targets)
             char_error_rate = self.metric.compute() * 100
             test_acc += char_error_rate
-            bar.set_postfix(acc='{:.4f}'.format(test_acc))
+            bar.set_postfix(cer='{:.4f}'.format(char_error_rate))
 
         test_acc /= len(test_dataloader)
         self.logger.add_scalar("test_acc", test_acc)

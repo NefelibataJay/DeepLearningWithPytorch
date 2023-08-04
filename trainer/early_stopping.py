@@ -8,7 +8,6 @@ class EarlyStopping:
 
     def __init__(self, save_path, patience=7, delta=0):
         """
-        # TODO add accuracy metric to early stopping
         Args:
             save_path : save path
             patience (int): How long to wait after last time validation loss improved.
@@ -24,13 +23,14 @@ class EarlyStopping:
         self.val_loss_min = 0
         self.delta = delta
 
-    def __call__(self, val_loss, model):
-
+    def __call__(self, val_loss, model, epoch):
+        # TODO add accuracy metric to early stopping
         score = -val_loss
+        # acc = -val_acc
 
         if self.best_score is None:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_loss, model, epoch)
         elif score < self.best_score + self.delta:
             self.counter += 1
             print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
@@ -38,13 +38,13 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_loss, model, epoch)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss, model):
+    def save_checkpoint(self, val_loss, model, epoch):
         """ Saves model when validation loss decrease. """
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
-        path = os.path.join(self.save_path, f'loss_{val_loss}.pth')
-        # torch.save(model.state_dict(), path)  # 这里会存储迄今最优模型的参数
+        path = os.path.join(self.save_path, f'epoch{epoch}:{val_loss}.pth')
+        torch.save(model.state_dict(), path)  # 这里会存储迄今最优模型的参数
         self.val_loss_min = val_loss

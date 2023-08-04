@@ -11,9 +11,8 @@ search_name: greedy_search
 
 train_conf:
   batch_size: 32
-  max_epoch: 50
+  max_epoch: 150
   valid_interval: 5
-  save_interval: 10
   accum_grad: 4
   grad_clip: 5
 

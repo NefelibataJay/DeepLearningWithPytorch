@@ -3,7 +3,7 @@ import os
 import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer

@@ -3,9 +3,12 @@ import os
 import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
+from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer
+from trainer.early_stopping import EarlyStopping
+from util.initialize import init_search
 
 
 class Trainer:
@@ -14,7 +17,8 @@ class Trainer:
                  model: torch.nn.Module,
                  optimizer: torch.optim,
                  scheduler: torch.optim.lr_scheduler,
-                 device) -> None:
+                 metric, device) -> None:
+        self.metric = metric
         self.config = config
         self.tokenizer = tokenizer
         # self.frontend = frontend  # TODO: add frontend
@@ -26,6 +30,8 @@ class Trainer:
 
         if self.config.train_conf.grad_clip is not None:
             self.grad_clip = self.config.train_conf.grad_clip
+
+        self.early_stop = EarlyStopping(os.path.join(self.config.save_path, "checkpoints"))
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
@@ -67,14 +73,13 @@ class Trainer:
 
             if epoch % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:
                 self.validate(valid_dataloader, epoch)
-            if epoch % self.config.train_conf.save_interval == 0 or epoch == self.config.train_conf.max_epoch:
-                self.save_model(epoch)
 
     @torch.no_grad()
     def validate(self, valid_dataloader, epoch):
         self.model.eval()
         print("=========================Eval=========================")
         valid_loss = 0
+        valid_cer = 0
         bar = tqdm(enumerate(valid_dataloader), desc=f"Training Eval")
         for idx, batch in bar:
             inputs, input_lengths, targets, target_lengths = batch
@@ -84,16 +89,25 @@ class Trainer:
             target_lengths = target_lengths.to(self.device)
             result = self.model(inputs, input_lengths, targets, target_lengths)
             loss = result["loss"]
+
+            logits = result["logits"]
+            char_error_rate = self._calc_cer_ctc(logits, targets)
+            valid_cer += char_error_rate
             valid_loss += loss.item()
             bar.set_postfix(loss='{:.4f}'.format(loss.item()))
         valid_loss /= len(valid_dataloader)
+        valid_cer /= len(valid_dataloader)
+        self.logger.add_scalar("valid_cer", valid_cer, epoch)
         self.logger.add_scalar("valid_loss", valid_loss, epoch)
         bar.set_postfix(val_loss='{:.4f}'.format(valid_loss))
+        self.early_stop(valid_loss, self.model, epoch)
+
         print("valid_loss:", valid_loss)
 
-    def save_model(self, epoch):
-        checkpoints_path = os.path.join(self.config.save_path, "checkpoints")
-        if not os.path.exists(checkpoints_path):
-            os.makedirs(checkpoints_path)
-        torch.save(self.model.state_dict(),
-                   os.path.join(checkpoints_path, f"{self.config.model_name}_{epoch}.pt"))
+    def _calc_cer_ctc(self, logits, targets):
+        best_hyps = logits.log_softmax(dim=-1).argmax(dim=-1)
+        predictions = [self.tokenizer.int2text(sent) for sent in best_hyps]
+        targets = [self.tokenizer.int2text(sent) for sent in targets]
+        self.metric(predictions, targets)
+        char_error_rate = self.metric.compute() * 100
+        return char_error_rate

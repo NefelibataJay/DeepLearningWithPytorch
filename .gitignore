@@ -24,3 +24,6 @@ share/python-wheels/
 
 *.log
 .idea/
+.vscode/
+*.pt
+*.pth

@@ -5,7 +5,8 @@ from models.modules.mask import *
 
 
 class GreedySearch:
-    def __init__(self,decode_type: str, max_length: int = 128, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3, pad_id: int = 0):
+    def __init__(self, decode_type: str, max_length: int = 128, sos_id: int = 1, eos_id: int = 2, blank_id: int = 3,
+                 pad_id: int = 0):
         self.max_length = max_length
         self.sos_id = sos_id
         self.eos_id = eos_id
@@ -13,9 +14,11 @@ class GreedySearch:
         self.blank_id = blank_id
         self.model_type = decode_type
 
-    def __call__(self, model, inputs, input_lengths):
+    def __call__(self, inputs, input_lengths, model):
         if self.model_type == "ctc":
-            return self.ctc_greedy_search(inputs, input_lengths)
+            encoder_out, encoder_out_lens = model.encoder(inputs, input_lengths)
+            log_probs = model.fc(encoder_out)
+            return self.ctc_greedy_search(log_probs, encoder_out_lens)
 
     def _greedy_search(self, log_probs):
         """
@@ -37,7 +40,7 @@ class GreedySearch:
         batch_size = logits.shape[0]
         max_len = logits.shape[1]
         ctc_probs = logits.log_softmax(dim=2)
-        # topk_index = log_probs.argmax(2)
+        # topk_index = logits.argmax(2)
         topk_prob, topk_index = ctc_probs.topk(1, dim=2)  # (B, max_len, 1)
         topk_index = topk_index.view(batch_size, max_len)  # (B, max_len)
         mask = make_pad_mask(encoder_out_lens, maxlen=max_len)  # (B, max_len)

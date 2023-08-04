@@ -74,7 +74,8 @@ class AishellDataset(Dataset):
         # TODO add speed_perturb
 
         feature = self.extract_feature(signal)
-        feature = self.spec_aug(feature)
+        if self.spec_aug is not None:
+            feature = self.spec_aug(feature)
 
         # feature [1, dim, time] -> [time, dim]
         feature = feature.squeeze(0).transpose(1, 0)

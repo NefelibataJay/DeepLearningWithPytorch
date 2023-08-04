@@ -10,8 +10,8 @@ class CTC(torch.nn.Module):
     def __init__(
             self,
             blank_id: int = 0,
-            reduction: str = 'sum',
-            zero_infinity: bool = True,
+            reduction: str = 'mean',
+            zero_infinity: bool = False,
     ):
         """ Construct CTC module """
         super().__init__()
@@ -29,9 +29,7 @@ class CTC(torch.nn.Module):
             ys_pad: batch of padded character id sequence tensor (B, Lmax)
             ys_lens: batch of lengths of character sequence (B)
         """
-        ys_hat = hs_pad.transpose(0, 1).log_softmax(dim=-1)
+        # ys_hat: (B, L, D) -> (L, B, D)
+        ys_hat = hs_pad.transpose(0, 1).log_softmax(-1)
         loss = self.ctc_loss(ys_hat, ys_pad, h_lens, ys_lens)
-        # Batch-size average
-        if self.reduction == 'sum':
-            loss = loss / ys_hat.size(1)
         return loss
