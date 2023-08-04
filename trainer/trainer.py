@@ -101,7 +101,7 @@ class Trainer:
         self.logger.add_scalar("valid_loss", valid_loss, epoch)
         bar.set_postfix(val_loss='{:.4f}'.format(valid_loss))
         self.early_stop(valid_loss, self.model, epoch)
-
+        print("valid_cer:", valid_cer)
         print("valid_loss:", valid_loss)
 
     def _calc_cer_ctc(self, logits, targets):
