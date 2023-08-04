@@ -12,12 +12,12 @@ from torch.utils.data import DataLoader
 from tool.metrics import REGISTERED_METRICS
 
 
-def init_config(config, stage='train'):
+def init_config(config, stage='train', init_param=False):
     init_seed(config.seed)
     tokenizer = init_tokenizer(config)
     num_classes = len(tokenizer)
     config.model.num_classes = num_classes
-    model = init_model(config)
+    model = init_model(config, init_param)
 
     if stage == 'train':
         optimizer = init_optimizer(model, config)
@@ -54,7 +54,7 @@ def init_dataloader(config, tokenizer, stage='train'):
         return test_dataloader
 
 
-def init_model(config):
+def init_model(config, init_param):
     model = REGISTER_MODEL[config.model_name](config)
     # TODO add weight init here if you want
     # TODO load pretrained model, load weight here
@@ -91,6 +91,7 @@ def init_search(config):
     search = REGISTER_SEARCH[config.search_name](**config.search)
     return search
 
+
 def _collate_fn(batch):
     inputs = [i[0] for i in batch]
 
@@ -102,4 +103,3 @@ def _collate_fn(batch):
     targets = torch.nn.utils.rnn.pad_sequence(targets, batch_first=True, padding_value=0).to(dtype=torch.int)
 
     return inputs, input_lengths, targets, target_lengths
-
