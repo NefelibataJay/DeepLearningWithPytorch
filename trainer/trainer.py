@@ -5,6 +5,7 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
+from tool.common import remove_duplicates_and_blank
 from tool.tokenize.tokenizer import Tokenizer
 from trainer.early_stopping import EarlyStopping
 from util.initialize import init_metric
@@ -105,6 +106,7 @@ class Trainer:
 
     def _calc_cer_ctc(self, logits, targets):
         best_hyps = logits.log_softmax(dim=-1).argmax(dim=-1)
+        best_hyps = remove_duplicates_and_blank(best_hyps)
         predictions = [self.tokenizer.int2text(sent) for sent in best_hyps]
         targets = [self.tokenizer.int2text(sent) for sent in targets]
         self.metric(predictions, targets)
