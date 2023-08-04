@@ -17,16 +17,15 @@ def init_config(config, stage='train', init_param=False):
     num_classes = len(tokenizer)
     config.model.num_classes = num_classes
     model = init_model(config, init_param)
-    metric = init_metric(config)
 
     if stage == 'train':
         optimizer = init_optimizer(model, config)
         scheduler = init_scheduler(optimizer, config)
         train_dataloader, valid_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, optimizer, scheduler, metric, train_dataloader, valid_dataloader,
+        return model, tokenizer, optimizer, scheduler, train_dataloader, valid_dataloader,
     else:
         test_dataloader = init_dataloader(config, tokenizer, stage=stage)
-        return model, tokenizer, metric, test_dataloader
+        return model, tokenizer, test_dataloader
 
 
 def init_seed(seed: int = 42):
@@ -83,7 +82,7 @@ def init_scheduler(optimizer, config):
 
 
 def init_metric(config):
-    metric = REGISTERED_METRICS[config.metric_name](**config.metric)
+    metric = REGISTERED_METRICS[config.metric_name]()
     return metric
 
 

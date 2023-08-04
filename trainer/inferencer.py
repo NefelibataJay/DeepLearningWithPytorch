@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer
-from util.initialize import init_search
+from util.initialize import init_search, init_metric
 
 
 class SpeechToText:
@@ -15,12 +15,12 @@ class SpeechToText:
                  config: DictConfig,
                  tokenizer: Tokenizer,
                  model: torch.nn.Module,
-                 metric, device):
+                 device):
         self.config = config
         self.logger = SummaryWriter(os.path.join(self.config.save_path, "log", self.config.model_name))
         self.tokenizer = tokenizer
         self.model = model
-        self.metric = metric
+        self.metric = init_metric(config)
         self.decode = init_search(config)
         self.device = device
 

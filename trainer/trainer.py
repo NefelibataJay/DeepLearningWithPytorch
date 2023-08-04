@@ -5,10 +5,9 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-from tool.common import remove_pad
 from tool.tokenize.tokenizer import Tokenizer
 from trainer.early_stopping import EarlyStopping
-from util.initialize import init_search
+from util.initialize import init_metric
 
 
 class Trainer:
@@ -17,8 +16,7 @@ class Trainer:
                  model: torch.nn.Module,
                  optimizer: torch.optim,
                  scheduler: torch.optim.lr_scheduler,
-                 metric, device) -> None:
-        self.metric = metric
+                 device) -> None:
         self.config = config
         self.tokenizer = tokenizer
         # self.frontend = frontend  # TODO: add frontend
@@ -31,6 +29,7 @@ class Trainer:
         if self.config.train_conf.grad_clip is not None:
             self.grad_clip = self.config.train_conf.grad_clip
 
+        self.metric = init_metric(config)
         self.early_stop = EarlyStopping(os.path.join(self.config.save_path, "checkpoints"))
 
     def train(self, train_dataloader, valid_dataloader):

@@ -25,13 +25,13 @@ def main():
     assert args.stage in ["train", "test"], "stage must be train or test"
 
     if args.stage == "train":
-        model, tokenizer, optimizer, scheduler, metric, train_dataloader, valid_dataloader = init_config(
+        model, tokenizer, optimizer, scheduler, train_dataloader, valid_dataloader = init_config(
             config, stage="train")
         if args.checkpoint_path is not None:
             model.load_state_dict(torch.load(args.checkpoint_path))
 
         # train model
-        trainer = Trainer(config, tokenizer, model, optimizer, scheduler, metric, device)
+        trainer = Trainer(config, tokenizer, model, optimizer, scheduler, device)
         trainer.train(train_dataloader, valid_dataloader)
 
         # final save model
@@ -39,12 +39,12 @@ def main():
 
     if args.stage == "test":
         assert args.checkpoint_path is not None, "checkpoint path must be not None"
-        model, tokenizer, metric, test_dataloader = init_config(config, stage="test")
+        model, tokenizer, test_dataloader = init_config(config, stage="test")
 
         model.load_state_dict(torch.load(args.checkpoint_path, map_location=torch.device(device)))
         model.eval()
 
-        inference = SpeechToText(config, tokenizer, model, metric, device)
+        inference = SpeechToText(config, tokenizer, model, device)
         inference.recognition(test_dataloader)
 
 
