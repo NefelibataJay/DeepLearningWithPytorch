@@ -6,7 +6,6 @@ from tool.search import REGISTER_SEARCH
 from tool.tokenize import REGISTER_TOKENIZER
 from datasets import REGISTER_DATASET
 from tool.optimizer import REGISTER_OPTIMIZER, REGISTER_SCHEDULER
-from tool.loss import REGISTER_LOSS
 from models import REGISTER_MODEL
 from torch.utils.data import DataLoader
 from tool.metrics import REGISTERED_METRICS

@@ -2,7 +2,6 @@ seed: 42
 tokenizer_name: chinese_char
 dataset_name: aishell
 model_name: conformer_ctc
-loss_name: ctc
 optimizer_name: adam
 scheduler_name: warmup_lr
 metric_name: cer

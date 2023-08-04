@@ -1,19 +1,17 @@
-seed: 42
+seed:
 tokenizer_name: chinese_char
 dataset_name: aishell
-model_name: conformer_ctc
-loss_name: ctc
-optimizer_name: adam
-scheduler_name: warmup_lr
+model_name:
+optimizer_name:
+scheduler_name:
 metric_name: cer
 save_path: ./outputs/
-search_name: greedy_search
+search_name:
 
 train_conf:
   batch_size: 32
   max_epoch: 50
   valid_interval: 5
-  save_interval: 10
   accum_grad: 4
   grad_clip: 5
 
@@ -26,7 +24,7 @@ tokenizer:
   unk_id: 4
 
 dataset:
-  dataset_path: /data/datasets/aishell/data_aishell
+  dataset_path:
   manifest_path: ../manifests/aishell_chars
   feature_types: fbank
   num_mel_bins: 80
@@ -49,20 +47,12 @@ model:
   num_classes: ??
   encoder:
     input_dim: ${dataset.num_mel_bins}
-    encoder_dim: 512
-    num_encoder_layers: 12
-    num_attention_heads: 8
-    feed_forward_expansion_factor: 4
-    input_dropout_p: 0.1
-    feed_forward_dropout_p: 0.1
-    attention_dropout_p: 0.1
-    dropout_p: 0.1
-    conv_kernel_size: 31
-    half_step_residual: True
+  decoder:
+    vocab_size: ${tokenizer.vocab_size}
+
 
 optimizer:
-  lr: 0.002
-  weight_decay: 0.000001
+  lr: 0.001
 
 lr_scheduler:
   warmup_steps: 35000
