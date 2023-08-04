@@ -63,13 +63,12 @@ class Trainer:
                     self.optimizer.step()
                     self.optimizer.zero_grad()
 
-                bar.set_postfix(loss='{:.4f}'.format(loss.item()))
+                bar.set_postfix(loss='{:.4f}'.format(loss.item() * self.config.train_conf.accum_grad))
                 train_loss += loss.item()
 
             train_loss /= len(train_dataloader)
             self.logger.add_scalar("train_loss", train_loss, epoch)
-            current_lr = self.optimizer.param_groups[0]['lr']
-            self.logger.add_scalar("train_lr", current_lr, epoch)
+            self.logger.add_scalar("train_lr", self.scheduler.get_last_lr()[0], epoch)
             self.scheduler.step()
 
             if epoch % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:

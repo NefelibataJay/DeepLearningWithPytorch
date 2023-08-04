@@ -2,7 +2,6 @@ seed: 42
 tokenizer_name: chinese_char
 dataset_name: aishell
 model_name: conformer_ctc_attention
-loss_name: ctc
 optimizer_name: adam
 scheduler_name: warmup_lr
 metric_name: cer
@@ -35,7 +34,7 @@ dataset:
 
   spec_aug: True
   spec_aug_conf:
-    max_t_mask: 50
+    max_t_mask: 20
     max_f_mask: 10
     num_t_mask: 2
     num_f_mask: 2
@@ -73,7 +72,6 @@ model:
 
 optimizer:
   lr: 0.0005
-#  weight_decay: 0.000001
 
 lr_scheduler:
   warmup_steps: 30000
@@ -81,12 +79,6 @@ lr_scheduler:
 weight_conf:
     ctc_weight: 0.3
     lsm_weight: 0.1
-
-
-# Inference
-metric:
-  ignore_case: True
-  reduction: mean
 
 search:
   decode_type: ctc
