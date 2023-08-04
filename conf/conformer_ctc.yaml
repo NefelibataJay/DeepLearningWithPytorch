@@ -59,12 +59,10 @@ model:
     half_step_residual: True
 
 optimizer:
-  lr: 0.0005
-#  weight_decay: 0.000001
+  lr: 0.002
 
 lr_scheduler:
-  warmup_steps: 35000
-
+  warmup_steps: 30000
 
 # Inference
 metric:
