@@ -70,13 +70,6 @@ optimizer:
 lr_scheduler:
   warmup_steps: 35000
 
-loss:
-  blank_id: ${tokenizer.blank_id}
-
-metric:
-  ignore_case: True
-  reduction: mean
-
 search:
   decode_type: ctc
   max_length : 100

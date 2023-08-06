@@ -28,7 +28,7 @@ def main():
         model, tokenizer, optimizer, scheduler, train_dataloader, valid_dataloader = init_config(
             config, stage="train")
         if args.checkpoint_path is not None:
-            model.load_state_dict(torch.load(args.checkpoint_path))
+            model.load_state_dict(torch.load(args.checkpoint_path, map_location=torch.device(device)))
 
         # train model
         trainer = Trainer(config, tokenizer, model, optimizer, scheduler, device)

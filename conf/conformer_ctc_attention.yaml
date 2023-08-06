@@ -11,7 +11,7 @@ search_name: greedy_search
 
 train_conf:
   batch_size: 16
-  max_epoch: 150
+  max_epoch: 250
   valid_interval: 5
   save_interval: 10
   accum_grad: 4
@@ -71,10 +71,10 @@ model:
     src_attention_dropout_rate: 0.0
 
 optimizer:
-  lr: 0.0005
+  lr: 0.002
 
 lr_scheduler:
-  warmup_steps: 30000
+  warmup_steps: 25000
 
 weight_conf:
     ctc_weight: 0.3
