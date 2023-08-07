@@ -31,11 +31,11 @@ class Trainer:
             self.grad_clip = self.config.train_conf.grad_clip
 
         self.metric = init_metric(config)
-        self.early_stop = EarlyStopping(os.path.join(self.config.save_path, "checkpoints"))
+        self.early_stop = EarlyStopping(os.path.join(self.config.save_path, "checkpoints", self.config.model_name))
 
     def train(self, train_dataloader, valid_dataloader):
         self.model.to(self.device)
-        # self.validate(valid_dataloader, -1)
+        self.validate(valid_dataloader, -1)
         print("=========================Start Training=========================")
         for epoch in range(self.config.train_conf.max_epoch + 1):
             self.model.train()
@@ -71,7 +71,7 @@ class Trainer:
             self.logger.add_scalar("train_lr", self.scheduler.get_last_lr()[0], epoch)
             self.scheduler.step()
 
-            if epoch % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:
+            if epoch + 1 % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:
                 self.validate(valid_dataloader, epoch)
 
     @torch.no_grad()
@@ -101,13 +101,12 @@ class Trainer:
         self.logger.add_scalar("valid_loss", valid_loss, epoch)
         bar.set_postfix(val_loss='{:.4f}'.format(valid_loss))
         self.early_stop(valid_loss, self.model, epoch)
-
+        print("valid_cer:", valid_cer)
         print("valid_loss:", valid_loss)
 
     def _calc_cer_ctc(self, logits, targets):
         best_hyps = logits.log_softmax(dim=-1).argmax(dim=-1)
-        best_hyps = remove_duplicates_and_blank(best_hyps)
-        predictions = [self.tokenizer.int2text(sent) for sent in best_hyps]
+        predictions = [self.tokenizer.int2text(remove_duplicates_and_blank(sent)) for sent in best_hyps]
         targets = [self.tokenizer.int2text(sent) for sent in targets]
         self.metric(predictions, targets)
         char_error_rate = self.metric.compute() * 100

@@ -10,7 +10,7 @@ search_name: greedy_search
 
 train_conf:
   batch_size: 16
-  max_epoch: 150
+  max_epoch: 250
   valid_interval: 5
   accum_grad: 4
   grad_clip: 5
@@ -72,7 +72,7 @@ optimizer:
   lr: 0.002
 
 lr_scheduler:
-  warmup_steps: 30000
+  warmup_steps: 25000
 
 weight_conf:
     ctc_weight: 0.3

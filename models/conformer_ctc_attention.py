@@ -77,7 +77,9 @@ class ConformerCTCAttention(torch.nn.Module):
 
         # calculate ctc loss
         logits = self.fc(encoder_outputs)
-        ctc_loss = self.ctc_criterion(logits, targets, output_lengths, target_lengths)
+        result["logits"] = logits
+
+        ctc_loss = self.ctc_criterion(logits, output_lengths, targets, target_lengths)
         result["ctc_loss"] = ctc_loss
 
         ys_in_pad = add_sos(targets, self.sos_id, self.pad_id)  # (batch, max_seq_len + 1)
