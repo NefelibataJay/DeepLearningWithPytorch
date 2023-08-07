@@ -71,7 +71,7 @@ class Trainer:
             self.logger.add_scalar("train_lr", self.scheduler.get_last_lr()[0], epoch)
             self.scheduler.step()
 
-            if epoch + 1 % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:
+            if (epoch + 1) % self.config.train_conf.valid_interval == 0 or epoch == self.config.train_conf.max_epoch:
                 self.validate(valid_dataloader, epoch)
 
     @torch.no_grad()
