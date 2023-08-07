@@ -15,7 +15,6 @@ train_conf:
   grad_clip: 5
 
 tokenizer:
-  word_dict_path: ../manifests/aishell_chars/vocab.txt
   pad_id: 0
   sos_id: 1
   eos_id: 2
@@ -23,15 +22,19 @@ tokenizer:
   unk_id: 4
 
 dataset:
-  dataset_path:
-  manifest_path: ../manifests/aishell_chars
+  dataset_path: E:/datasets/data_aishell
+  manifest_path: ../manifests/aishell
   feature_types: fbank
-  num_mel_bins: 80
   sample_rate: 16000
-
+  extractor_conf:
+    num_mel_bins: 80
+    frame_shift: 10
+    frame_length: 25
+    dither: 1.0
+  speed_perturb: true
   spec_aug: True
   spec_aug_conf:
-    max_t_mask: 20
+    max_t_mask: 50
     max_f_mask: 10
     num_t_mask: 2
     num_f_mask: 2
