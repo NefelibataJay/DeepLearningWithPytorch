@@ -1,6 +1,6 @@
 seed:
 tokenizer_name: chinese_char
-dataset_name: aishell
+dataset_name: asr_dataset
 model_name:
 optimizer_name:
 scheduler_name:
