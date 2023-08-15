@@ -138,13 +138,18 @@ class TransformerDecoder(torch.nn.Module):
                           dtype=torch.uint8 in PyTorch 1.2-
                           dtype=torch.bool in PyTorch 1.2+ (include 1.2)
             Returns:
-                y, cache: NN output value and cache per `self.decoders`.
-                y.shape` is (batch, maxlen_out, token)
+               y.shape` is (batch, maxlen_out, token)
         """
         memory = encoder_outputs
         memory_mask = (~make_pad_mask(encoder_outputs_length, maxlen=encoder_outputs.size(1)))[:, None, :].to(
             encoder_outputs.device
         )
+        if memory_mask.shape[0] != memory.shape[0]:
+            # beam_search case
+            beam_size = memory.shape[0] // memory_mask.shape[0]
+            batch_size = memory_mask.shape[0]
+            memory_mask = memory_mask.unsqueeze(1).repeat(1, beam_size, 1, 1).view(
+                beam_size * batch_size, 1, memory.shape[1])
 
         x, _ = self.embed(tgt)
         for layer in self.decoders:

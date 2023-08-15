@@ -111,6 +111,7 @@ class GreedySearch:
         pass
 
     def attention_greedy_search(self, encoder_outputs, encoder_output_lengths, decoder):
+        
         pass
 
 

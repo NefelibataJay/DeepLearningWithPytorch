@@ -113,7 +113,7 @@ class BeamSearch:
             batch_size, dtype=torch.long, device=device) * beam_size
         best_hyps = torch.index_select(hyps, dim=0, index=best_hyps_index)
 
-        best_hyps = best_hyps[:, 1:] # remove sos
+        best_hyps = best_hyps[:, 1:]  # remove sos
         return best_hyps, best_scores
 
 
