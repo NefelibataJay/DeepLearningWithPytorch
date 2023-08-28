@@ -7,9 +7,9 @@ from tool.tokenize import REGISTER_TOKENIZER
 from datasets import REGISTER_DATASET
 from tool.optimizer import REGISTER_OPTIMIZER, REGISTER_SCHEDULER
 from models import REGISTER_MODEL
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoaders
 from tool.metrics import REGISTERED_METRICS
-from collator import *
+from util.collator import *
 
 
 def init_config(config, stage='train', init_params=None):

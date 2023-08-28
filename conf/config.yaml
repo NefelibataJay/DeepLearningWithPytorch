@@ -6,6 +6,7 @@ optimizer_name:
 scheduler_name:
 metric_name: cer
 save_path: ./outputs/
+use_cmvn: True
 
 train_conf:
   batch_size: 32
